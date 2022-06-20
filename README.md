@@ -1,3 +1,5 @@
+# WORK IN PROGRESS - IGNORE THIS REPO AT THE MOMENT
+
 # Robot-Runner
 Robot Runner (RR) is a tool to automatically execute measurement-based experiments on robotics software.
 
