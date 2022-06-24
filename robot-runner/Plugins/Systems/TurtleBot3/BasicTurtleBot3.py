@@ -5,7 +5,7 @@ from std_srvs.srv import (Empty, EmptyRequest)
 from rospy.timer import Rate
 from geometry_msgs.msg import Twist
 
-from ConfigValidator.Config.Models.RobotRunnerContext import RobotRunnerContext
+from ConfigValidator.Config.Models.RunnerContext import RunnerContext
 
 from Plugins.Systems.TurtleBot3.modules.sensors.CameraSensor import CameraSensor
 from Plugins.Systems.TurtleBot3.modules.recording.MetricsRecorder import MetricsRecorder
@@ -27,7 +27,7 @@ class BasicTurtleBot3:
     service_networking_start: ServiceProxy
     service_networking_stop: ServiceProxy
 
-    def start_run_mini_mission_real_world(self, context: RobotRunnerContext):
+    def start_run_mini_mission_real_world(self, context: RunnerContext):
         rospy.init_node("robot_runner")
         self.metrics_recorder = MetricsRecorder(str(context.run_dir.absolute()) + '/metrics.txt')
         self.mvmnt_command = Twist()
@@ -51,7 +51,7 @@ class BasicTurtleBot3:
     def stop_run_mission(self):
         self.mvmnt_controller.stop()
 
-    def launch_mini_mission_real_world(self, context: RobotRunnerContext):
+    def launch_mini_mission_real_world(self, context: RunnerContext):
         def drive_forward_10_seconds():
             print("driving forwards 10 seconds")
             roll, pitch, yaw = self.odom_controller.get_odometry_as_tuple()

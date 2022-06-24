@@ -3,7 +3,7 @@ import time
 
 from pathlib import Path
 from shutil import copyfile
-from ConfigValidator.Config.Models.RobotRunnerContext import RobotRunnerContext
+from ConfigValidator.Config.Models.RunnerContext import RunnerContext
 from ProgressManager.Output.OutputProcedure import OutputProcedure as output
 
 class INA219Profiler:
@@ -12,7 +12,7 @@ class INA219Profiler:
     def __init__(self, path_to_data_file):
         self.__path_to_data_file = path_to_data_file
 
-    def move_data_file_to_run_folder(self, context: RobotRunnerContext, file_name: str):
+    def move_data_file_to_run_folder(self, context: RunnerContext, file_name: str):
         copyfile(self.__path_to_data_file, str(context.run_dir.absolute()) + file_name)
 
     def halt_and_collect_measures_from_sd_card_and_return_data(self):

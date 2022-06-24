@@ -11,7 +11,7 @@ class ConfigInvalidError(ConfigBaseError):
 
 class ConfigInvalidClassNameError(ConfigBaseError):
     def __init__(self):
-        super().__init__("The config file specified does not have a valid config class name as expected (RobotRunnerConfig).")
+        super().__init__("The config file specified does not have a valid config class name as expected (RunnerConfig).")
 
 class ConfigAttributeInvalidError(ConfigBaseError):
     def __init__(self, attribute_in_question, found, expected):

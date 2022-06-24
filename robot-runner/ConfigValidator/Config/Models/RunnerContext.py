@@ -1,6 +1,6 @@
 from pathlib import Path
 
-class RobotRunnerContext:
+class RunnerContext:
     run_variation: dict
     run_nr:  int
     run_dir: Path

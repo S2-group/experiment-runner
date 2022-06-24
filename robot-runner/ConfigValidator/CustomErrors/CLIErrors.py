@@ -11,4 +11,4 @@ class InvalidUserSpecifiedPathError(BaseError):
 
 class InvalidConfigTypeSpecifiedError(BaseError):
     def __init__(self):
-        super().__init__("The specified config type did not match: robot OR base")
+        super().__init__("The specified config type did not match.")

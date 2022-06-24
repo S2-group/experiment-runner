@@ -27,9 +27,9 @@ if __name__ == "__main__":
         elif is_config_file_given(sys.argv):                                # If the first arugments ends with .py -> a config file is entered
             config_file = load_and_get_config_file_as_module(sys.argv)
 
-            if hasattr(config_file, 'RobotRunnerConfig'):
-                config = config_file.RobotRunnerConfig()                    # Instantiate config from injected file
-                ConfigValidator.validate_config(config)                     # Validate config as a valid RobotRunnerConfig
+            if hasattr(config_file, 'RunnerConfig'):
+                config = config_file.RunnerConfig()                         # Instantiate config from injected file
+                ConfigValidator.validate_config(config)                     # Validate config as a valid RunnerConfig
                 ExperimentController(config).do_experiment()                # Instantiate controller with config and start experiment
             else:
                 raise ConfigInvalidClassNameError

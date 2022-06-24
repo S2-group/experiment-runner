@@ -3,11 +3,11 @@ from typing import Dict, List
 import multiprocessing
 from ProgressManager.RunTable.Models.RunProgress import RunProgress
 from ConfigValidator.Config.Models.OperationType import OperationType
-from EventManager.Models.RobotRunnerEvents import RobotRunnerEvents
+from EventManager.Models.RunnerEvents import RunnerEvents
 from ProgressManager.RunTable.RunTableManager import RunTableManager
 from ProgressManager.Output.CSVOutputManager import CSVOutputManager
 from ExperimentOrchestrator.Experiment.Run.RunController import RunController
-from ConfigValidator.Config.RobotRunnerConfig import RobotRunnerConfig
+from ConfigValidator.Config.RunnerConfig import RunnerConfig
 from ProgressManager.Output.OutputProcedure import OutputProcedure as output
 from ConfigValidator.CustomErrors.ExperimentOutputErrors import ExperimentOutputPathAlreadyExistsError
 from EventManager.EventSubscriptionController import EventSubscriptionController
@@ -19,7 +19,7 @@ from ConfigValidator.CustomErrors.ProgressErrors import AllRunsCompletedOnRestar
 ###     |       - Init and perform runs of correct type         |
 ###     |       - Perform experiment overhead                   |
 ###     |       - Perform run overhead (time_btwn_runs)         |
-###     |       - Signal experiment end to robot (ClientRunner) |
+###     |       - Signal experiment end (ClientRunner)          |
 ###     |                                                       |
 ###     |       * Experiment config that should be used         |
 ###     |         throughout the program is declared here       |
@@ -27,13 +27,13 @@ from ConfigValidator.CustomErrors.ProgressErrors import AllRunsCompletedOnRestar
 ###     |                                                       |
 ###     =========================================================
 class ExperimentController:
-    config: RobotRunnerConfig      = None
+    config: RunnerConfig           = None
     run_table: List[Dict]          = None
     restarted: bool                = False
     experiment_path_as_string: str = None
     data_manager: CSVOutputManager = None
 
-    def __init__(self, config: RobotRunnerConfig):
+    def __init__(self, config: RunnerConfig):
         self.config = config
         self.experiment_path_as_string = str(self.config.experiment_path.absolute())
 
@@ -56,14 +56,15 @@ class ExperimentController:
         # -- Before experiment
         output.console_log_WARNING("Calling before_experiment config hook")
         
-        EventSubscriptionController.raise_event(RobotRunnerEvents.BEFORE_EXPERIMENT)
+        EventSubscriptionController.raise_event(RunnerEvents.BEFORE_EXPERIMENT)
 
         # -- Experiment
         for variation in self.run_table:
             if variation['__done'] == RunProgress.DONE:
                 continue
-            
-            EventSubscriptionController.raise_event(RobotRunnerEvents.BEFORE_RUN)
+
+            output.console_log_WARNING("Calling before_run config hook")
+            EventSubscriptionController.raise_event(RunnerEvents.BEFORE_RUN)
 
             run_controller = RunController(variation, self.config, (self.run_table.index(variation) + 1), len(self.run_table))
             perform_run = multiprocessing.Process(
@@ -79,14 +80,13 @@ class ExperimentController:
                 time.sleep(time_btwn_runs / 1000)
             
             if self.config.operation_type is OperationType.SEMI:
-                EventSubscriptionController.raise_event(RobotRunnerEvents.CONTINUE)
+                EventSubscriptionController.raise_event(RunnerEvents.CONTINUE)
         
         output.console_log_OK("Experiment completed...")
 
         # -- After experiment
         output.console_log_WARNING("Calling after_experiment config hook")
-
-        EventSubscriptionController.raise_event(RobotRunnerEvents.AFTER_EXPERIMENT)
+        EventSubscriptionController.raise_event(RunnerEvents.AFTER_EXPERIMENT)
 
     def create_experiment_output_folder(self):
         try:

@@ -38,7 +38,7 @@ class RunTableModel:
         combinations_list = list(itertools.product(*list_of_lists))
         filtered_list = __filter_list(combinations_list)
 
-        column_names = ['__run_id', '__done']   # Needed for robot-runner functionality
+        column_names = ['__run_id', '__done']   # Needed for experiment-runner functionality
         for factor in self.__factors:
             column_names.append(factor.get_factor_name())
 

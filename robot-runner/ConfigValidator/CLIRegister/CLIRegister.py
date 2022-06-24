@@ -5,7 +5,7 @@ from typing import List
 from shutil import copyfile
 from tabulate import tabulate
 
-from ConfigValidator.Config.RobotRunnerConfig import RobotRunnerConfig
+from ConfigValidator.Config.RunnerConfig import RunnerConfig
 from ExperimentOrchestrator.Misc.BashHeaders import BashHeaders
 from ExperimentOrchestrator.Misc.PathValidation import is_path_exists_or_creatable_portable
 from ProgressManager.Output.OutputProcedure import OutputProcedure as output
@@ -47,11 +47,12 @@ class ConfigCreate:
         if not is_path_exists_or_creatable_portable(destination):
             raise InvalidUserSpecifiedPathError(destination)
         
-        module = RobotRunnerConfig
+        module = RunnerConfig
         src = inspect.getmodule(module).__file__
         dest_folder = destination
         #destination += src.split('/')[-1]
-        config_unique_name = 'RobotRunnerConfig-' + str(uuid.uuid1()) + '.py'
+        config_unique_name = 'RunnerConfig-' + str(uuid.uuid1()) + '.py'
+        # config_unique_name = 'RunnerConfig-' + 'foobar' + '.py' # FIXME: DEBUG ONLY BUILDS
         destination += config_unique_name
         copyfile(src, destination)
         output.console_log_OK(
@@ -70,7 +71,7 @@ class Prepare:
 
     @staticmethod
     def description_long() -> str:
-        output.console_log_bold("Prepare will install all the user's required dependencies to be able to run robot-runner on their system.")
+        output.console_log_bold("Prepare will install all the user's required dependencies to be able to run experiment-runner on their system.")
 
     @staticmethod
     def execute(args=None) -> None:
@@ -87,15 +88,15 @@ class Help:
 
     @staticmethod
     def description_long() -> str:
-        print(BashHeaders.BOLD + "--- ROBOT_RUNNER HELP ---" + BashHeaders.ENDC)
-        print("\n%-*s  %s" % (10, "Usage:", "python robot-runner/ <path_to_config.py>"))
-        print("%-*s  %s" % (10, "Utility:", "python robot-runner/ <command>"))
+        print(BashHeaders.BOLD + "--- EXPERIMENT_RUNNER HELP ---" + BashHeaders.ENDC)
+        print("\n%-*s  %s" % (10, "Usage:", "python experiment-runner/ <path_to_config.py>"))
+        print("%-*s  %s" % (10, "Utility:", "python experiment-runner/ <command>"))
 
         print("\nAvailable commands:\n")
         print(tabulate([(k, v.description_params()) for k, v in CLIRegister.register.items()], ["Command", "Parameters"]))
 
         print("\nHelp can be called for each command:")
-        print(BashHeaders.WARNING + "example: " + BashHeaders.ENDC + "python robot-runner/ prepare help")
+        print(BashHeaders.WARNING + "example: " + BashHeaders.ENDC + "python experiment-runner/ prepare help")
 
     @staticmethod
     def execute(args=None) -> None:

@@ -14,14 +14,14 @@ from ExperimentOrchestrator.Misc.BashHeaders import BashHeaders
 ###     |                                                       |
 ###     =========================================================
 class OutputProcedure:
-    robot_runner = "[ROBOT_RUNNER]: "
+    runner = "[EXPERIMENT_RUNNER]: "
 
     @staticmethod
     def console_log(txt: str, empty_line=False):
         if empty_line:
             print(" " * 100)
 
-        print(f"{OutputProcedure.robot_runner} {txt}")
+        print(f"{OutputProcedure.runner} {txt}")
 
     @staticmethod
     def console_log_OK(txt: str, empty_line=False):

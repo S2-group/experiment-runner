@@ -16,4 +16,4 @@ class ExperimentOutputFileDoesNotExistError(BaseError):
                             " (experiment output folder) exists, but the " + 
                             BashHeaders.UNDERLINE + "run_table.csv" + BashHeaders.ENDC + BashHeaders.FAIL +
                             " does not exist.\n" +
-                            "Robot-runner cannot restart!")
+                            "Experiment-runner cannot restart!")
