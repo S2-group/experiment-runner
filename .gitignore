@@ -5,3 +5,7 @@ examples/ros/__pycache__/*
 */.DS_Store
 .DS_Store
 .vscode
+.python-version
+experiment-runner/tmp/
+pycharm-interpreter.sh
+python
