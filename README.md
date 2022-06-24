@@ -65,7 +65,7 @@ Now that the system has all the necessary components installed to run Robot Runn
 
 ### Creating configuration file
 ```bash
-Python3.8 robot-runner/ config-create [directory]
+Python3.8 experiment-runner/ config-create [directory]
 ```
 
 When running this command, where *[directory]* is an optional argument, a new config file with some example code will be generated. The default location for this would be *robot-runner/experiments/*, otherwise the given directory will be used.
@@ -110,7 +110,7 @@ Supporting information:
 
     def create_run_table(self) -> List[Dict]:
         """Create and return the run_table here. A run_table is a List (rows) of dictionaries (columns), 
-        representing each run robot-runner must perform"""
+        representing each run experiment-runner must perform"""
         run_table = RunTableModel(
             factors = [
                 FactorModel("example_factor", ['example_treatment1', 'example_treatment2'])
@@ -157,7 +157,7 @@ Supporting information:
 ### Performing the experiment
 Once the experiment has been defined by the user, as business logic setup in the shown event callbacks above, the experiment can be performed by Robot Runner. To do this, the user runs the following command:
 ```bash
-python3.8 robot-runner/ experiment_config.py
+python3.8 experiment-runner/ experiment_config.py
 ```
 
 After which Robot Runner will:
