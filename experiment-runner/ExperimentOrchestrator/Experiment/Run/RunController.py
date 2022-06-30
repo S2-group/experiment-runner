@@ -18,7 +18,6 @@ class RunController(IRunController):
 
         # -- Start interaction
         output.console_log_WARNING("Calling interaction config hook")
-
         EventSubscriptionController.raise_event(RunnerEvents.INTERACT, self.run_context)
         output.console_log_OK("... Run completed ...")
 
@@ -27,14 +26,17 @@ class RunController(IRunController):
         EventSubscriptionController.raise_event(RunnerEvents.STOP_MEASUREMENT, self.run_context)
 
         output.console_log_WARNING("Calling populate_run_data config hook")
-        updated_run_data = EventSubscriptionController.raise_event(RunnerEvents.POPULATE_RUN_DATA, self.run_context)
-        if updated_run_data is None:
-            row = self.run_context.run_variation
-            row['__done'] = RunProgress.DONE
-            self.data_manager.update_row_data(row)
+        user_run_data = EventSubscriptionController.raise_event(RunnerEvents.POPULATE_RUN_DATA, self.run_context)
+
+        if user_run_data:
+            # TODO: check if data columns exist and if yes, if they match
+            updated_run_data = {**self.run_context.run_variation,
+                                **user_run_data}  # shallowly-merged dictionary. Takes values from first; replacing matching keys with values from second.
         else:
-            updated_run_data['__done'] = RunProgress.DONE
-            self.data_manager.update_row_data(updated_run_data)
+            updated_run_data = self.run_context.run_variation
+
+        updated_run_data['__done'] = RunProgress.DONE
+        self.data_manager.update_row_data(updated_run_data)
 
         # -- Stop run
         output.console_log_WARNING("Calling stop_run config hook")
