@@ -10,6 +10,8 @@ Experiment Runner is a generic framework to automatically execute measurement-ba
 - **Restarting**: If an experiment was not entirely completed on the last invocation (e.g. some variations crashes), experiment runner can be re-invoked to finish any remaining experiment variations.
 - **Persistency**: Raw and aggregated experiment data per variation can be persistently stored.
 - **Operational Types**: Two operational types: `AUTO` and `SEMI`, for more fine-grained experiment control.
+- **Progress Indicator**: Keeps track of the execution of each run of the experiment
+- **Target and profiler agnostic**: Can be used with any target to measure (e.g. ELF binary, .apk over adb, etc.) and with any profiler (e.g. WattsUpPro, etc.)
 
 ## Requirements
 
@@ -99,6 +101,12 @@ Further detailed description of the events and their expected callback behavior 
 
 ## Internal Details
 
+The framework offers an automation of the infrastructure overhead for measurement-based empirical experiments, as a consequence of its design, produced by the following **design drivers**:
+
+- **User Authority**: Give the user full authority over the experiment execution in the Python-based configuration file.
+- **Focus on Orchestration**: Orchestrate the experiment on the basis of *events*. These events are characterized by their *moment of execution* in any experiment.
+- **Focus on Supporting Infrastructure**: Offer the user all, potentially necessary, supporting features (e.g. factors and treatment levels).
+
 Experiment Runner consists of the following **components**:
 
 - **Experiment orchestrator**: Is in charge of executing the whole experiment according to the experiment configuration provided by the user.
@@ -108,13 +116,7 @@ Experiment Runner consists of the following **components**:
 
 *TODO: Add visualization similar to [robot-runner overview](documentation/overview.png)*
 
-The framework offers an automation of the infrastructure overhead for measurement-based empirical experiments, as a consequence of its design, produced by the following **design drivers**:
-
-- **User Authority**: Give the user full authority over the experiment execution in the Python-based configuration file.
-- **Focus on Orchestration**: Orchestrate the experiment on the basis of *events*. These events are characterized by their *moment of execution* in any experiment.
-- **Focus on Supporting Infrastructure**: Offer the user all, potentially necessary, supporting features (e.g. factors and treatment levels).
-
-When Experiment Runner runs is passed an experiment config as an argument, it will:
+When Experiment Runner is passed a user-defined experiment config via command line arguments, it will:
 
 - Validate the config
 - Output the config's values as read by Experiment Runner in the console for user validation
