@@ -19,19 +19,21 @@ import shlex
 class RunnerConfig:
     ROOT_DIR = Path(dirname(realpath(__file__)))
 
-    # ================================ USER SPECIFIC NECESSARY CONFIG ================================
-    # Name for this experiment
+    # ================================ USER SPECIFIC CONFIG ================================
+    """The name of the experiment."""
     name:                       str             = "new_runner_experiment"
 
-    # Experiment operation types
+    """The path in which Experiment Runner will create a folder with the name `self.name`, in order to store the
+    results from this experiment. (Path does not need to exist - it will be created if necessary.)
+    Output path defaults to the config file's path, inside the folder 'experiments'"""
+    results_output_path:        Path             = ROOT_DIR / 'experiments'
+
+    """Experiment operation type. Unless you manually want to initiate each run, use `OperationType.AUTO`."""
     operation_type:             OperationType   = OperationType.AUTO
 
-    # Run settings
+    """The time Experiment Runner will wait after a run completes.
+    This can be essential to accommodate for cooldown periods on some systems."""
     time_between_runs_in_ms:    int             = 1000
-
-    # Path to store results at. Defaults to the config file's path, inside the folder 'experiments'.
-    # NOTE: Path does not need to exist. It will be appended with the `name` as specified above and will be created on runtime
-    results_output_path:        Path             = ROOT_DIR / 'experiments'
 
     # Dynamic configurations can be one-time satisfied here before the program takes the config as-is
     # e.g. Setting some variable based on some criteria
