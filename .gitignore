@@ -1,6 +1,6 @@
 .idea
 */__pycache__/*
-examples/linux-top/primer
+examples/linux-ps-profiling/primer
 examples/*/experiments
 **/__pycache__/
 */.DS_Store
