@@ -25,6 +25,11 @@ class RunController(IRunController):
         output.console_log_WARNING("... Stopping measurement ...")
         EventSubscriptionController.raise_event(RunnerEvents.STOP_MEASUREMENT, self.run_context)
 
+        # -- Stop run
+        output.console_log_WARNING("Calling stop_run config hook")
+        EventSubscriptionController.raise_event(RunnerEvents.STOP_RUN, self.run_context)
+
+        # -- Collect data from measurements
         output.console_log_WARNING("Calling populate_run_data config hook")
         user_run_data = EventSubscriptionController.raise_event(RunnerEvents.POPULATE_RUN_DATA, self.run_context)
 
@@ -37,7 +42,3 @@ class RunController(IRunController):
 
         updated_run_data['__done'] = RunProgress.DONE
         self.data_manager.update_row_data(updated_run_data)
-
-        # -- Stop run
-        output.console_log_WARNING("Calling stop_run config hook")
-        EventSubscriptionController.raise_event(RunnerEvents.STOP_RUN, self.run_context)
