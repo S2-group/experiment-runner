@@ -1,6 +1,7 @@
 .idea
 */__pycache__/*
-examples/ros/__pycache__/*
+examples/linux-top/primer
+examples/*/experiments
 **/__pycache__/
 */.DS_Store
 .DS_Store
