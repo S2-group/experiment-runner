@@ -1,14 +1,14 @@
 import itertools
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Set
 from ProgressManager.RunTable.Models.RunProgress import RunProgress
 from ConfigValidator.Config.Models.FactorModel import FactorModel
 
 class RunTableModel:
     __factors:       List[FactorModel] = None
-    __exclude_variations:            List[Dict]  = None
+    __exclude_variations:            List[Set]   = None
     __data_columns:                  List[str]   = None
 
-    def __init__(self, factors: List[FactorModel], exclude_variations: List[Dict] = None, data_columns: List[str] = None):
+    def __init__(self, factors: List[FactorModel], exclude_variations: List[Set] = None, data_columns: List[str] = None):
         self.__factors = factors
         self.__exclude_variations = exclude_variations
         self.__data_columns = data_columns
