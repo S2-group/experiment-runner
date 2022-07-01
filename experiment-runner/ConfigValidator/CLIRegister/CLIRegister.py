@@ -28,10 +28,10 @@ class ConfigCreate:
     def execute(args=None) -> None:
         try:
             destination = ""
-            if args == None:
+            if args is None:
                 filepath = __file__.split('/')
                 filepath.pop()
-                filepath = '/'.join(filepath) + "/../../../experiments/"
+                filepath = '/'.join(filepath) + "/../../../examples/"
                 destination = os.path.abspath(filepath)
             else:
                 if len(args) == 3:
