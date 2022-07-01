@@ -6,9 +6,14 @@ from ConfigValidator.Config.Models.RunnerContext import RunnerContext
 from ConfigValidator.Config.Models.OperationType import OperationType
 from ProgressManager.Output.OutputProcedure import OutputProcedure as output
 
-from typing import Dict, List, Any, Optional
+from typing import Dict, List
 from pathlib import Path
 from os.path import dirname, realpath
+
+import pandas as pd
+import time
+import subprocess
+import shlex
 
 
 class RunnerConfig:
@@ -45,77 +50,112 @@ class RunnerConfig:
             (RunnerEvents.AFTER_EXPERIMENT , self.after_experiment )
         ])
         self.run_table = None  # Initialized later
-
         output.console_log("Custom config loaded")
 
     def create_run_table(self) -> List[Dict]:
         """Create and return the run_table here. A run_table is a List (rows) of tuples (columns), 
         representing each run performed"""
         self.run_table = RunTableModel(
-            factors=[
-                FactorModel("example_factor1", ['example_treatment1', 'example_treatment2', 'example_treatment3']),
-                FactorModel("example_factor2", ['True', 'False']),
+            factors = [
+                FactorModel("cpu_limit", ['20', '50', '70']),
+                FactorModel("pin_core" , ['True', 'False'])
             ],
-            exclude_variations=[
-                {"example_treatment1"},         # all runs having treatment example_treatment1 will be excluded. #FIXME: Currently, this excludes all runs having treatment 'example_treatment1' in any of the factors
-                {"example_treatment2", "True"}  # all runs having the combination <treatment1, treatment2> will be excluded #FIXME: Currently, this excludes all runs having treatment `set(treatment1, treatment2)` as a subset of all treatement combinations, in any of the factors
+            exclude_variations = [
+                {"70", "False"} # all runs having the combination <'70', 'False'> will be excluded
             ],
-            data_columns=['avg_cpu', 'avg_mem']
+            data_columns=['avg_cpu']
         )
         return self.run_table.generate_experiment_run_table()
 
     def before_experiment(self) -> None:
         """Perform any activity required before starting the experiment here
         Invoked only once during the lifetime of the program."""
-
-        output.console_log("Config.before_experiment() called!")
+        subprocess.check_call(['make'], cwd=self.ROOT_DIR) # compile
 
     def before_run(self) -> None:
         """Perform any activity required before starting a run.
         No context is available here as the run is not yet active (BEFORE RUN)"""
-
-        output.console_log("Config.before_run() called!")
+        pass
 
     def start_run(self, context: RunnerContext) -> None:
         """Perform any activity required for starting the run here.
         For example, starting the target system to measure.
         Activities after starting the run should also be performed here."""
+        
+        cpu_limit = int(context.run_variation['cpu_limit'])
+        pin_core  = context.run_variation['pin_core'].lower() == 'true'
 
-        output.console_log("Config.start_run() called!")
+        # start the target
+        self.target = subprocess.Popen(['./primer'],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=self.ROOT_DIR,
+        )
+
+        # Configure the environment based on the current variation
+        if pin_core:
+            subprocess.check_call(shlex.split(f'taskset -cp 0  {self.target.pid}'))
+        subprocess.check_call(shlex.split(f'cpulimit -b -p {self.target.pid} --limit {cpu_limit}'))
+        
 
     def start_measurement(self, context: RunnerContext) -> None:
         """Perform any activity required for starting measurements."""
-        output.console_log("Config.start_measurement() called!")
+
+        # man 1 ps
+        # %cpu:
+        #   cpu utilization of the process in "##.#" format.  Currently, it is the CPU time used
+        #   divided by the time the process has been running (cputime/realtime ratio), expressed
+        #   as a percentage.  It will not add up to 100% unless you are lucky.  (alias pcpu).
+        profiler_cmd = f'ps -p {self.target.pid} --noheader -o %cpu'
+        wrapper_script = f'''
+        while true; do {profiler_cmd}; sleep 1; done
+        '''
+
+        time.sleep(1) # alow the process to run a little before measuring
+        self.profiler = subprocess.Popen(['sh', '-c', wrapper_script],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        )
 
     def interact(self, context: RunnerContext) -> None:
         """Perform any interaction with the running target system here, or block here until the target finishes."""
 
-        output.console_log("Config.interact() called!")
+        # No interaction. We just run it for XX seconds.
+        # Another example would be to wait for the target to finish, e.g. via `self.target.wait()`
+        output.console_log("Running program for 20 seconds")
+        time.sleep(20)
 
     def stop_measurement(self, context: RunnerContext) -> None:
         """Perform any activity here required for stopping measurements."""
 
-        output.console_log("Config.stop_measurement called!")
+        self.profiler.kill()
+        self.profiler.wait()
 
     def stop_run(self, context: RunnerContext) -> None:
         """Perform any activity here required for stopping the run.
         Activities after stopping the run should also be performed here."""
-
-        output.console_log("Config.stop_run() called!")
-
-    def populate_run_data(self, context: RunnerContext) -> Optional[Dict[str, Any]]:
+        
+        self.target.kill()
+        self.target.wait()
+    
+    def populate_run_data(self, context: RunnerContext) -> tuple:
         """Parse and process any measurement data here.
         You can also store the raw measurement data under `context.run_dir`
         Returns a dictionary with keys `self.run_table.data_columns` and their values populated"""
 
-        output.console_log("Config.populate_run_data() called!")
-        return None
+        df = pd.DataFrame(columns=['cpu_usage'])
+        for i,l in enumerate(self.profiler.stdout.readlines()):
+            cpu_usage=float(l.decode('ascii').strip())
+            df.loc[i] = [cpu_usage]
+        
+        df.to_csv(context.run_dir / 'raw_data.csv', index=False)
+
+        run_data = {
+            'avg_cpu': round(df['cpu_usage'].mean(), 3)
+        }
+        return run_data
 
     def after_experiment(self) -> None:
         """Perform any activity required after stopping the experiment here
         Invoked only once during the lifetime of the program."""
-
-        output.console_log("Config.after_experiment() called!")
+        pass
 
     # ================================ DO NOT ALTER BELOW THIS LINE ================================
     experiment_path:            Path             = None

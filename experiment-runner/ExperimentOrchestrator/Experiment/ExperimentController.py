@@ -54,8 +54,8 @@ class ExperimentController:
         output.console_log_OK("Experiment setup completed...")
         
         # -- Before experiment
+        # TODO: From a user perspective, it would be nice to know if this is a restarted experiment or not (in case something failed)
         output.console_log_WARNING("Calling before_experiment config hook")
-        
         EventSubscriptionController.raise_event(RunnerEvents.BEFORE_EXPERIMENT)
 
         # -- Experiment
@@ -96,6 +96,8 @@ class ExperimentController:
                 self.run_table = self.data_manager.read_run_table_from_csv()
                 self.restarted = True
                 todo_run_found = False
+
+                # TODO: shouldn't we also check the md5sum of the .py config? (after removing comments)
                 
                 for variation in self.run_table:
                     todo_run_found = (variation['__done'] != RunProgress.DONE)
