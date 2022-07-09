@@ -1,2 +1,4 @@
 psutil
 tabulate
+dill
+jsonpickle

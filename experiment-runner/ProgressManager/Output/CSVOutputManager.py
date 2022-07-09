@@ -8,11 +8,12 @@ import shutil
 import csv
 from typing import Dict, List
 
+
 class CSVOutputManager(BaseOutputManager):
-    def read_run_table_from_csv(self) -> List[Dict]:
+    def read_run_table(self) -> List[Dict]:
         read_run_table = []
         try:
-            with open(self._experiment_path + '/run_table.csv', 'r') as csvfile:
+            with open(self._experiment_path / 'run_table.csv', 'r') as csvfile:
                 reader = csv.DictReader(csvfile)
                 for row in reader:
                     # if value was integer, stored as string by CSV writer, then convert back to integer.
@@ -29,9 +30,9 @@ class CSVOutputManager(BaseOutputManager):
         except:
             raise ExperimentOutputFileDoesNotExistError
 
-    def write_run_table_to_csv(self, run_table: List[Dict]):
+    def write_run_table(self, run_table: List[Dict]):
         try:
-            with open(self._experiment_path + '/run_table.csv', 'w', newline='') as myfile:
+            with open(self._experiment_path / 'run_table.csv', 'w', newline='') as myfile:
                 writer = csv.DictWriter(myfile, fieldnames=list(run_table[0].keys()))
                 writer.writeheader()
                 for data in run_table:
@@ -47,7 +48,7 @@ class CSVOutputManager(BaseOutputManager):
     def update_row_data(self, updated_row: dict):
         tempfile = NamedTemporaryFile(mode='w', delete=False)
 
-        with open(self._experiment_path + '/run_table.csv', 'r') as csvfile, tempfile:
+        with open(self._experiment_path / 'run_table.csv', 'r') as csvfile, tempfile:
             reader = csv.DictReader(csvfile, fieldnames=list(updated_row.keys()))
             writer = csv.DictWriter(tempfile, fieldnames=list(updated_row.keys()))
 
@@ -60,7 +61,7 @@ class CSVOutputManager(BaseOutputManager):
                 else:
                     writer.writerow(row)
 
-        shutil.move(tempfile.name, self._experiment_path + '/run_table.csv')
+        shutil.move(tempfile.name, self._experiment_path / 'run_table.csv')
         output.console_log_WARNING(f"CSVManager: Updated row {updated_row['__run_id']}")
 
         # with open(self.experiment_path + '/run_table.csv', 'w', newline='') as myfile:

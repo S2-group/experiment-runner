@@ -4,6 +4,7 @@ from ConfigValidator.Config.Models.RunTableModel import RunTableModel
 from ConfigValidator.Config.Models.FactorModel import FactorModel
 from ConfigValidator.Config.Models.RunnerContext import RunnerContext
 from ConfigValidator.Config.Models.OperationType import OperationType
+from ExtendedTyping.Typing import SupportsStr
 from ProgressManager.Output.OutputProcedure import OutputProcedure as output
 
 from typing import Dict, List, Any, Optional
@@ -46,7 +47,7 @@ class RunnerConfig:
             (RunnerEvents.POPULATE_RUN_DATA, self.populate_run_data),
             (RunnerEvents.AFTER_EXPERIMENT , self.after_experiment )
         ])
-        self.run_table = None  # Initialized later
+        self.run_table_model = None  # Initialized later
 
         output.console_log("Custom config loaded")
 
@@ -55,15 +56,15 @@ class RunnerConfig:
         representing each run performed"""
         factor1 = FactorModel("example_factor1", ['example_treatment1', 'example_treatment2', 'example_treatment3'])
         factor2 = FactorModel("example_factor2", [True, False])
-        self.run_table = RunTableModel(
+        self.run_table_model = RunTableModel(
             factors=[factor1, factor2],
             exclude_variations=[
-                {factor1: ['example_treatment1']},                   # all runs having treatment example_treatment1 will be excluded
-                {factor1: ['example_treatment2'], factor2: [True]},  # all runs having the combination (example_treatment2, True) will be excluded
+                {factor1: ['example_treatment1']},                   # all runs having treatment "example_treatment1" will be excluded
+                {factor1: ['example_treatment2'], factor2: [True]},  # all runs having the combination ("example_treatment2", True) will be excluded
             ],
             data_columns=['avg_cpu', 'avg_mem']
         )
-        return self.run_table.generate_experiment_run_table()
+        return self.run_table_model.generate_experiment_run_table()
 
     def before_experiment(self) -> None:
         """Perform any activity required before starting the experiment here
@@ -104,10 +105,10 @@ class RunnerConfig:
 
         output.console_log("Config.stop_run() called!")
 
-    def populate_run_data(self, context: RunnerContext) -> Optional[Dict[str, Any]]:
+    def populate_run_data(self, context: RunnerContext) -> Optional[Dict[str, SupportsStr]]:
         """Parse and process any measurement data here.
         You can also store the raw measurement data under `context.run_dir`
-        Returns a dictionary with keys `self.run_table.data_columns` and their values populated"""
+        Returns a dictionary with keys `self.run_table_model.data_columns` and their values populated"""
 
         output.console_log("Config.populate_run_data() called!")
         return None
