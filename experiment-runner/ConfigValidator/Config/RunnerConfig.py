@@ -53,14 +53,13 @@ class RunnerConfig:
     def create_run_table(self) -> List[Dict]:
         """Create and return the run_table here. A run_table is a List (rows) of tuples (columns), 
         representing each run performed"""
+        factor1 = FactorModel("example_factor1", ['example_treatment1', 'example_treatment2', 'example_treatment3'])
+        factor2 = FactorModel("example_factor2", [True, False])
         self.run_table = RunTableModel(
-            factors=[
-                FactorModel("example_factor1", ['example_treatment1', 'example_treatment2', 'example_treatment3']),
-                FactorModel("example_factor2", ['True', 'False']),
-            ],
+            factors=[factor1, factor2],
             exclude_variations=[
-                {"example_treatment1"},         # all runs having treatment example_treatment1 will be excluded. #FIXME: Currently, this excludes all runs having treatment 'example_treatment1' in any of the factors
-                {"example_treatment2", "True"}  # all runs having the combination <treatment1, treatment2> will be excluded #FIXME: Currently, this excludes all runs having treatment `set(treatment1, treatment2)` as a subset of all treatement combinations, in any of the factors
+                {factor1: ['example_treatment1']},                   # all runs having treatment example_treatment1 will be excluded
+                {factor1: ['example_treatment2'], factor2: [True]},  # all runs having the combination (example_treatment2, True) will be excluded
             ],
             data_columns=['avg_cpu', 'avg_mem']
         )
