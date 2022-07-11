@@ -7,6 +7,7 @@ examples/*/experiments
 .DS_Store
 .vscode
 .python-version
-experiment-runner/tmp/
+tmp/
+test/_trial_temp/
 pycharm-interpreter.sh
 python
