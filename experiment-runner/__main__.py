@@ -70,5 +70,7 @@ if __name__ == "__main__":
             CLIRegister.parse_command(sys.argv)
     except BaseError as e:                                                  # All custom errors are displayed in custom format
         print(f"\n{e}")
+        sys.exit(1)
     except:                                                                 # All non-covered errors are displayed normally
         traceback.print_exc()
+        sys.exit(1)
