@@ -19,7 +19,7 @@ pip install -r requirements.txt
 From the root directory of the repo, run the following command:
 
 ```bash
-python experiment-runner/ examples/linux-ps-profiling/RunnerConfig-ps.py
+python experiment-runner/ examples/linux-ps-profiling/RunnerConfig.py
 ```
 
 ## Results

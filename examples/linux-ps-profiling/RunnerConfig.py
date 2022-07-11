@@ -6,7 +6,7 @@ from ConfigValidator.Config.Models.RunnerContext import RunnerContext
 from ConfigValidator.Config.Models.OperationType import OperationType
 from ProgressManager.Output.OutputProcedure import OutputProcedure as output
 
-from typing import Dict, List
+from typing import Dict, List, Any, Optional
 from pathlib import Path
 from os.path import dirname, realpath
 
@@ -57,13 +57,12 @@ class RunnerConfig:
     def create_run_table(self) -> List[Dict]:
         """Create and return the run_table here. A run_table is a List (rows) of tuples (columns), 
         representing each run performed"""
+        cpu_limit_factor = FactorModel("cpu_limit", [20, 50, 70 ])
+        pin_core_factor  = FactorModel("pin_core" , [True, False])
         self.run_table = RunTableModel(
-            factors = [
-                FactorModel("cpu_limit", ['20', '50', '70']),
-                FactorModel("pin_core" , ['True', 'False'])
-            ],
+            factors = [cpu_limit_factor, pin_core_factor],
             exclude_variations = [
-                {"70", "False"} # all runs having the combination <'70', 'False'> will be excluded
+                {cpu_limit_factor: [70], pin_core_factor: [False]} # all runs having the combination <'70', 'False'> will be excluded
             ],
             data_columns=['avg_cpu']
         )
@@ -84,8 +83,8 @@ class RunnerConfig:
         For example, starting the target system to measure.
         Activities after starting the run should also be performed here."""
         
-        cpu_limit = int(context.run_variation['cpu_limit'])
-        pin_core  = context.run_variation['pin_core'].lower() == 'true'
+        cpu_limit = context.run_variation['cpu_limit']
+        pin_core  = context.run_variation['pin_core']
 
         # start the target
         self.target = subprocess.Popen(['./primer'],
@@ -111,7 +110,7 @@ class RunnerConfig:
         while true; do {profiler_cmd}; sleep 1; done
         '''
 
-        time.sleep(1) # alow the process to run a little before measuring
+        time.sleep(1) # allow the process to run a little before measuring
         self.profiler = subprocess.Popen(['sh', '-c', wrapper_script],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE
         )
@@ -137,13 +136,13 @@ class RunnerConfig:
         self.target.kill()
         self.target.wait()
     
-    def populate_run_data(self, context: RunnerContext) -> tuple:
+    def populate_run_data(self, context: RunnerContext) -> Optional[Dict[str, Any]]:
         """Parse and process any measurement data here.
         You can also store the raw measurement data under `context.run_dir`
         Returns a dictionary with keys `self.run_table.data_columns` and their values populated"""
 
         df = pd.DataFrame(columns=['cpu_usage'])
-        for i,l in enumerate(self.profiler.stdout.readlines()):
+        for i, l in enumerate(self.profiler.stdout.readlines()):
             cpu_usage=float(l.decode('ascii').strip())
             df.loc[i] = [cpu_usage]
         
