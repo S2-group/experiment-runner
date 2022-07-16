@@ -1,9 +1,7 @@
 from pathlib import Path
 
+
 class RunnerContext:
-    run_variation: dict
-    run_nr:  int
-    run_dir: Path
 
     def __init__(self, run_variation: dict, run_nr: int, run_dir: Path):
         self.run_variation = run_variation
