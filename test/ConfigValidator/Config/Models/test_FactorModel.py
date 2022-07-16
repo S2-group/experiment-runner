@@ -7,8 +7,8 @@ from ConfigValidator.CustomErrors.BaseError import BaseError
 class TestFactorModelUniqueness(unittest.TestCase):
     def test_uniqueness(self):
         try:
-            factorModel = FactorModel('example_factore', [1,2,1])
-            self.assertFalse('')
+            factorModel = FactorModel('example_factore', [1, 2, 1])
+            self.assertFalse()
         except BaseError:
             pass
 
