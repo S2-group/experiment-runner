@@ -11,7 +11,6 @@ from ProgressManager.Output.CSVOutputManager import CSVOutputManager
 from ExperimentOrchestrator.Experiment.Run.RunController import RunController
 from ConfigValidator.Config.RunnerConfig import RunnerConfig
 from ProgressManager.Output.OutputProcedure import OutputProcedure as output
-from ConfigValidator.CustomErrors.ExperimentOutputErrors import ExperimentOutputPathAlreadyExistsError
 from EventManager.EventSubscriptionController import EventSubscriptionController
 from ConfigValidator.CustomErrors.ProgressErrors import AllRunsCompletedOnRestartError
 
@@ -83,7 +82,7 @@ class ExperimentController:
                 assert (i == int(variation['__run_id'][4:]))
                 assert (i == int(upd_variation['__run_id'][4:]))
 
-                for k in map(lambda factor: factor.get_factor_name(),
+                for k in map(lambda factor: factor.factor_name,
                              self.config.run_table_model.get_factors()):  # treatment levels remain the same
                     assert (str(upd_variation[k]) == str(variation[k]))
 

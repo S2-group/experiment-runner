@@ -53,16 +53,13 @@ class RunTableModel:
                 del full_list[idx]
             return full_list
 
-        list_of_lists = []
-        for treatment in self.__factors:
-            list_of_lists.append(treatment.get_treatments())
-
+        list_of_lists = [factor.treatments for factor in self.__factors]
         combinations_list = list(itertools.product(*list_of_lists))
         filtered_list = __filter_list(combinations_list)
 
         column_names = ['__run_id', '__done']  # Needed for experiment-runner functionality
         for factor in self.__factors:
-            column_names.append(factor.get_factor_name())
+            column_names.append(factor.factor_name)
 
         if self.__data_columns:
             for data_column in self.__data_columns:

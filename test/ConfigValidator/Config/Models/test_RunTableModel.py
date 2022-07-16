@@ -23,9 +23,9 @@ class TestRunTableModelSimple(unittest.TestCase):
             self.assertIn('__done', run)
             self.assertEquals(run['__done'], RunProgress.TODO)
             for factor in self.runTableModel.get_factors():
-                self.assertIn(factor.get_factor_name(), run)
-                treatment_level = run[factor.get_factor_name()]
-                self.assertIn(treatment_level, factor.get_treatments())
+                self.assertIn(factor.factor_name, run)
+                treatment_level = run[factor.factor_name]
+                self.assertIn(treatment_level, factor.treatments)
             for data_col in self.runTableModel.get_data_columns():
                 self.assertIn(data_col, run)
 
@@ -48,7 +48,7 @@ class TestRunTableModelExclusions(unittest.TestCase):
 
     def test_generate_experiment_run_table(self):
         table = self.runTableModel.generate_experiment_run_table()
-        full_table = itertools.product(self.factor1.get_treatments(), self.factor2.get_treatments())
+        full_table = itertools.product(self.factor1.treatments, self.factor2.treatments)
         for run in table:
             pair = (run['example_factor1'], run['example_factor2'])
             self.assertIn(pair, full_table)
