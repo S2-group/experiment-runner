@@ -2,6 +2,7 @@ import time
 import multiprocessing
 
 from ConfigValidator.Config.Models.Metadata import Metadata
+from ConfigValidator.CustomErrors.BaseError import BaseError
 from ProgressManager.Output.JSONOutputManager import JSONOutputManager
 from ProgressManager.RunTable.Models.RunProgress import RunProgress
 from ConfigValidator.Config.Models.OperationType import OperationType
@@ -43,24 +44,40 @@ class ExperimentController:
         try:
             self.config.experiment_path.mkdir(parents=True, exist_ok=False)
         except FileExistsError:
-            # In order to resume a previous experiment, the following conditions must hold true:
-            # 1. The column names of the stored run_table and the generated one must match
-            # 2. The stored md5sum for the RunnerConfig-*.py must match the current one
-            # If these match:
-            #   3. Check for remaining "TODO" in the __done column
-
+            output.console_log_WARNING(f"Reusing already existing experiment path: {self.config.experiment_path}")
             existing_run_table = self.csv_data_manager.read_run_table()
-            if not set(existing_run_table[0].keys()) == set(self.run_table[0].keys()):  # check column names
-                raise ExperimentOutputPathAlreadyExistsError
 
+            # First sanity check. If there is no "TODO" in the __done column, simply abort.
+            todo_run_found = any([variation['__done'] != RunProgress.DONE for variation in existing_run_table])
+            if not todo_run_found:
+                raise BaseError("The experiment was restarted, but all runs have already been completed.")
+
+            # The experiment has been restarted as there is >=1 "TODO" variations in the CSV file
+            # In order to resume a previous experiment, the following conditions must hold true:
+            #   1. The column names of the stored run_table and the generated one must match
+            #   2. The stored md5sum for the code must match the current one
+
+            # check column names
+            if not set(existing_run_table[0].keys()) == set(self.run_table[0].keys()):
+                raise BaseError("The generated run table from the config file, and the found run table in the CSV in "
+                                "the experiment output path, do not define the same columns!"
+                                )
+            # check md5sum
             existing_metadata = self.json_data_manager.read_metadata()
             if existing_metadata.md5sum != self.metadata.md5sum:  # check md5sum
-                raise ExperimentOutputPathAlreadyExistsError
+                cont = output.query_yes_no("md5sum mismatch! This can occur if the configuration code "
+                                           "has changed since the last run. Continue anyway?", default=None)
+                if not cont:
+                    raise BaseError("Aborting due to md5sum mismatch.")
+
+                output.console_log_WARNING(f"Updating md5sum from {existing_metadata.md5sum.hex()} to {self.metadata.md5sum.hex()}")
+                self.json_data_manager.write_metadata(self.metadata)
 
             self.restarted = True
 
             # Fill in the run_table.
-            # Note that the stored run_table has only a str() representation of the factor treatment levels
+            # Note that the stored run_table has only a str() representation of the factor treatment levels.
+            # The generated one can have arbitrary python objects.
             for i, variation in enumerate(existing_run_table):
                 upd_variation = self.run_table[i]  # variation that will be updated
                 assert (i == int(variation['__run_id'][4:]))
@@ -74,22 +91,10 @@ class ExperimentController:
                         ['__done']):  # update data columns and __done column
                     upd_variation[k] = variation[k]
 
-            # Check if there was anything remaining
-            todo_run_found = False
-
-            for variation in self.run_table:
-                if variation['__done'] != RunProgress.DONE:
-                    todo_run_found = True
-                    break
-
-            if self.restarted and not todo_run_found:
-                raise AllRunsCompletedOnRestartError
-
+            output.console_log_WARNING(">> WARNING << -- Experiment is restarted!")
         if not self.restarted:
             self.csv_data_manager.write_run_table(self.run_table)
             self.json_data_manager.write_metadata(self.metadata)
-        else:
-            output.console_log_WARNING(">> WARNING << -- Experiment is restarted!")
 
         output.console_log_WARNING("Experiment run table created...")
 

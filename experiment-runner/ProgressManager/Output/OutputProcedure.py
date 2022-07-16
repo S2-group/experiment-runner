@@ -1,4 +1,5 @@
 import time
+import sys
 from tabulate import tabulate
 from ExperimentOrchestrator.Misc.DictConversion import class_to_dict
 from ExperimentOrchestrator.Misc.BashHeaders import BashHeaders
@@ -55,3 +56,33 @@ class OutputProcedure:
         headers = ['Key', 'Value']
         data = [(k, v) for k, v in d.items()]
         print(f"\n\n{tabulate(data, headers=headers)}\n\n")
+
+    @staticmethod
+    def query_yes_no(question, default="yes") -> bool:
+        """Ask a yes/no question via raw_input() and return their answer.
+
+        "question" is a string that is presented to the user.
+        "default" is the presumed answer if the user just hits <Enter>.
+                It must be "yes" (the default), "no", or None (meaning
+                an answer is required of the user).
+
+        The "answer" return value is True for "yes" or False for "no".
+        """
+        valid = {"yes": True, "y": True, "ye": True, "no": False, "n": False}
+        if default is None:
+            prompt = " [y/n] "
+        elif default == "yes":
+            prompt = " [Y/n] "
+        elif default == "no":
+            prompt = " [y/N] "
+        else:
+            raise ValueError(f"invalid default answer: {default}")
+
+        while True:
+            txt = question + prompt
+            print(f"{OutputProcedure.runner} {BashHeaders.WARNING + txt + BashHeaders.ENDC}", end='')
+            choice = input().lower().strip()
+            if default is not None and choice == "":
+                return valid[default]
+            elif choice in valid:
+                return valid[choice]
