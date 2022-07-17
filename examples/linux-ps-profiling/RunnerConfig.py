@@ -51,7 +51,7 @@ class RunnerConfig:
             (RunnerEvents.POPULATE_RUN_DATA, self.populate_run_data),
             (RunnerEvents.AFTER_EXPERIMENT , self.after_experiment )
         ])
-        self.run_table = None  # Initialized later
+        self.run_table_model = None  # Initialized later
         output.console_log("Custom config loaded")
 
     def create_run_table(self) -> List[Dict]:
@@ -59,14 +59,14 @@ class RunnerConfig:
         representing each run performed"""
         cpu_limit_factor = FactorModel("cpu_limit", [20, 50, 70 ])
         pin_core_factor  = FactorModel("pin_core" , [True, False])
-        self.run_table = RunTableModel(
+        self.run_table_model = RunTableModel(
             factors = [cpu_limit_factor, pin_core_factor],
             exclude_variations = [
                 {cpu_limit_factor: [70], pin_core_factor: [False]} # all runs having the combination <'70', 'False'> will be excluded
             ],
             data_columns=['avg_cpu']
         )
-        return self.run_table.generate_experiment_run_table()
+        return self.run_table_model.generate_experiment_run_table()
 
     def before_experiment(self) -> None:
         """Perform any activity required before starting the experiment here
@@ -139,7 +139,7 @@ class RunnerConfig:
     def populate_run_data(self, context: RunnerContext) -> Optional[Dict[str, Any]]:
         """Parse and process any measurement data here.
         You can also store the raw measurement data under `context.run_dir`
-        Returns a dictionary with keys `self.run_table.data_columns` and their values populated"""
+        Returns a dictionary with keys `self.run_table_model.data_columns` and their values populated"""
 
         df = pd.DataFrame(columns=['cpu_usage'])
         for i, l in enumerate(self.profiler.stdout.readlines()):
