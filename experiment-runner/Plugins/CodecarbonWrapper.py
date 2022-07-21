@@ -64,6 +64,8 @@ def populate_co2_data(func):
         self: RunnerConfig = args[0]
 
         ret_val = func(*args, **kwargs)
+        if ret_val is None:
+            ret_val = {}
         ret_val['__co2_emissions'] = self.__emissions__
 
         return ret_val
