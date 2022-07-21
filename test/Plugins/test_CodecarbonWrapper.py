@@ -63,7 +63,52 @@ class TestEmissionTrackerIndividual(unittest.TestCase):
         run_data = self.runner_config.populate_run_data(None)
         self.assertIn('__co2_emissions', run_data)
         self.assertTrue(run_data['__co2_emissions'] > 0)
+        self.assertTrue(run_data['avg_cpu'] == 52.3)
+        self.assertTrue(run_data['avg_mem'] == 18.1)
         self.assertTrue( (Path(self.runner_config.tmpdir) / 'emissions.csv').is_file() )
+        print(run_data)
+
+
+class TestEmissionTrackerCombined(unittest.TestCase):
+    # setUpClass and tearDownClass appear broken *sigh*. Use this wrapper instead. We have a singleton anyway.
+    tmpdir: AnyStr = tempfile.mkdtemp()
+
+    @CodecarbonWrapper.emission_tracker(
+        country_iso_code="NLD",
+        output_dir=tmpdir
+    )
+    class EmissionTrackerConfig(RunnerConfig):
+        def clear(self):
+            print(f'Clearing tmpdir {TestEmissionTrackerCombined.tmpdir}')
+            shutil.rmtree(TestEmissionTrackerCombined.tmpdir)
+
+        def interact(self, context: RunnerContext):
+            output.console_log("Config.interact() called!")
+            re.search(r'^(a|a?)+b$', "a" * 20)  # ReDoS to consume some cpu
+
+        def populate_run_data(self, context: RunnerContext):
+            output.console_log("Config.populate_run_data() called!")
+            return {
+                'avg_cpu': 52.3,
+                'avg_mem': 18.1
+            }
+
+    def setUp(self) -> None:
+        self.runner_config = self.__class__.EmissionTrackerConfig()
+        self.run_table = self.runner_config.create_run_table()
+
+    def tearDown(self) -> None:
+        self.runner_config.clear()
+
+    def test_config(self):
+        self.runner_config.start_measurement(None)
+        self.runner_config.interact(None)
+        self.runner_config.stop_measurement(None)
+        run_data = self.runner_config.populate_run_data(None)
+        self.assertIn('__co2_emissions', run_data)
+        self.assertTrue(run_data['avg_cpu'] == 52.3)
+        self.assertTrue(run_data['avg_mem'] == 18.1)
+        self.assertTrue( (Path(TestEmissionTrackerCombined.tmpdir) / 'emissions.csv').is_file() )
         print(run_data)
 
 

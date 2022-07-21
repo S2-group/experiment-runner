@@ -13,11 +13,15 @@ import codecarbon
 from ConfigValidator.Config.Models.RunnerContext import RunnerContext
 from ConfigValidator.Config.RunnerConfig import RunnerConfig
 
-# def emission_tracker(*decargs, **deckwargs):
-#     def emission_tracker_decorator(cls):
-#         cls.start_measurement = start_emission_tracker(*decargs, **deckwargs)(cls.start_measurement)
-#         return cls
-#     return emission_tracker_decorator
+def emission_tracker(online=False, *decargs, **deckwargs):
+    def emission_tracker_decorator(cls):
+        cls.create_run_table  = add_co2_data_column(cls.create_run_table)
+        cls.start_measurement = start_emission_tracker(online=online, *decargs, **deckwargs)(cls.start_measurement)
+        cls.stop_measurement  = stop_emission_tracker(cls.stop_measurement)
+        cls.populate_run_data = populate_co2_data(cls.populate_run_data)
+
+        return cls
+    return emission_tracker_decorator
 
 def start_emission_tracker(online=False, *decargs, **deckwargs):
     def start_emission_tracker_decorator(func):
