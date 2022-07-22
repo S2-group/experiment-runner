@@ -1,8 +1,8 @@
 .idea
 */__pycache__/*
 examples/linux-ps-profiling/primer
-examples/*/experiments
 **/__pycache__/
+**/experiments/
 */.DS_Store
 .DS_Store
 .vscode
