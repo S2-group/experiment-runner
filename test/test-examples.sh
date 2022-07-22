@@ -8,7 +8,7 @@ then
     echo "Script ran from PyCharm sh shell. Setting python"
     # hacky way for `alias` in sh
     python () {
-        ${PROJECT_DIR}/python "$@"
+        "${PROJECT_DIR}"/python "$@"
     }
 fi
 
@@ -22,7 +22,7 @@ for directory in examples/*/ ; do
 done
 
 
-for example in ${examples[@]}; do
+for example in "${examples[@]}"; do
     echo "Testing $example"
 
     echo " [*] Cleaning"
