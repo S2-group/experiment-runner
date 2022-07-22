@@ -11,11 +11,12 @@ from ConfigValidator.Config.Models.RunnerContext import RunnerContext
 from ConfigValidator.Config.RunnerConfig import RunnerConfig
 
 class DataColumns(Enum):
+    """For the description of data columns, see
+      1. https://mlco2.github.io/codecarbon/output.html#id2
+      2. https://github.com/mlco2/codecarbon/blob/master/codecarbon/output.py#L25
+    """
     EMISSIONS         = auto()
     EMISSIONS_RATE    = auto()
-    CPU_POWER         = auto()
-    GPU_POWER         = auto()
-    RAM_POWER         = auto()
     CPU_ENERGY        = auto()
     GPU_ENERGY        = auto()
     RAM_ENERGY        = auto()

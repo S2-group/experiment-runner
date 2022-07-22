@@ -19,7 +19,7 @@ pip install codecarbon
 
 ### Usage
 
-To simply add a CO2 data column, use the following snippet:
+To simply measure CO2 emissions (kg) and total energy consumed (kWh) and append them as data columns, use the following snippet:
 
 ```python
 from Plugins import CodecarbonWrapper
@@ -33,7 +33,7 @@ class RunnerConfig:
     ...
 ```
 
-This will add `codecarbon___emissions` and `codecarbon___energy_consumed` data columns in the generated run_table.csv.
+This will add `codecarbon__emissions` and `codecarbon__energy_consumed` data columns in the generated run_table.csv.
 
 For a more fine-grained approach, the above snippet is equivalent to the following:
 
@@ -61,6 +61,8 @@ class RunnerConfig:
     def populate_run_data(self, context: RunnerContext):
         ...
 ```
+
+* For the description of the "emissions.csv" that is generated per variation, check [codecarbon documentation](https://mlco2.github.io/codecarbon/output.html#output).
 
 ### Known issues
 
