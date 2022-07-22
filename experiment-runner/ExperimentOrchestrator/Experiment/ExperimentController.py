@@ -73,22 +73,32 @@ class ExperimentController:
                 self.json_data_manager.write_metadata(self.metadata)
 
             self.restarted = True
+            assert(len(existing_run_table) == len(self.run_table))
+
+            # Re-order the generated run table to match the already existing one
+            tmp_run_table = []
+            for existing_var in existing_run_table:
+                for generated_var in self.run_table:
+                    if existing_var['__run_id'] == generated_var['__run_id']:
+                        tmp_run_table.append(generated_var)
+                        break
+            self.run_table = tmp_run_table
+            for existing_var, generated_var in zip(existing_run_table, self.run_table):
+                assert(existing_var['__run_id'] == generated_var['__run_id'])
 
             # Fill in the run_table.
             # Note that the stored run_table has only a str() representation of the factor treatment levels.
             # The generated one can have arbitrary python objects.
-            for i, variation in enumerate(existing_run_table):
-                upd_variation = self.run_table[i]  # variation that will be updated
-                assert (i == int(variation['__run_id'][4:]))
-                assert (i == int(upd_variation['__run_id'][4:]))
+            for existing_var, generated_var in zip(existing_run_table, self.run_table):
+                assert (existing_var['__run_id'] == generated_var['__run_id'])
 
                 for k in map(lambda factor: factor.factor_name,
                              self.config.run_table_model.get_factors()):  # treatment levels remain the same
-                    assert (str(upd_variation[k]) == str(variation[k]))
+                    assert (str(generated_var[k]) == str(existing_var[k]))
 
                 for k in set(self.config.run_table_model.get_data_columns()).union(
                         ['__done']):  # update data columns and __done column
-                    upd_variation[k] = variation[k]
+                    generated_var[k] = existing_var[k]
 
             output.console_log_WARNING(">> WARNING << -- Experiment is restarted!")
         if not self.restarted:

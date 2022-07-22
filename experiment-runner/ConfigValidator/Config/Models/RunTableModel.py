@@ -1,6 +1,8 @@
 import itertools
+import random
 from typing import Dict, List, Tuple
 
+from ConfigValidator.CustomErrors.BaseError import BaseError
 from ExtendedTyping.Typing import SupportsStr
 from ProgressManager.RunTable.Models.RunProgress import RunProgress
 from ConfigValidator.Config.Models.FactorModel import FactorModel
@@ -10,16 +12,24 @@ class RunTableModel:
     def __init__(self,
                  factors: List[FactorModel],
                  exclude_variations: List[Dict[FactorModel, List[SupportsStr]]] = None,
-                 data_columns: List[str] = None
+                 data_columns: List[str] = None,
+                 shuffle: bool = False
                  ):
         if exclude_variations is None:
             exclude_variations = {}
         if data_columns is None:
             data_columns = []
-        # TODO: Prevent duplicate factors with the same name
+
+        if len(set([factor.factor_name for factor in factors])) != len(factors):
+            raise BaseError("Duplicate factor name detected!")
+
+        if len(set(data_columns)) != len(data_columns):
+            raise BaseError("Duplicate data column detected!")
+
         self.__factors = factors
         self.__exclude_variations = exclude_variations
         self.__data_columns = data_columns
+        self.__shuffle = shuffle
 
     def get_factors(self) -> List[FactorModel]:
         return self.__factors
@@ -72,8 +82,10 @@ class RunTableModel:
             row_list.insert(1, RunProgress.TODO)  # __done
 
             if self.__data_columns:
-                for data_column in self.__data_columns:
+                for _ in self.__data_columns:
                     row_list.append(" ")
-
             experiment_run_table.append(dict(zip(column_names, row_list)))
+
+        if self.__shuffle:
+            random.shuffle(experiment_run_table)
         return experiment_run_table

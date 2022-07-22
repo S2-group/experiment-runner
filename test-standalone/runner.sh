@@ -15,6 +15,7 @@ fi
 
 set -e
 tests=( # TODO: gather_tests recursively
+  "${PROJECT_DIR}/test-standalone/core/shuffling"
   "${PROJECT_DIR}/test-standalone/core/arbitrary-objects"
   "${PROJECT_DIR}/test-standalone/plugins/CodecarbonWrapper/individual"
   "${PROJECT_DIR}/test-standalone/plugins/CodecarbonWrapper/combined"

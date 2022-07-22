@@ -3,7 +3,36 @@ import itertools
 
 from ConfigValidator.Config.Models.FactorModel import FactorModel
 from ConfigValidator.Config.Models.RunTableModel import RunTableModel
+from ConfigValidator.CustomErrors.BaseError import BaseError
 from ProgressManager.RunTable.Models.RunProgress import RunProgress
+
+
+class TestRunTableModelDuplicateNames(unittest.TestCase):
+
+    def test_duplicate_factor_names(self):
+        try:
+            RunTableModel(
+                factors=[
+                    FactorModel("example_factor1", ['example_treatment1', 'example_treatment2', 'example_treatment3']),
+                    FactorModel("example_factor1", [True, False]),
+                ]
+            )
+            self.assert_(False)
+        except BaseError:
+            pass
+
+    def test_duplicate_data_columns(self):
+        try:
+            RunTableModel(
+                factors=[
+                    FactorModel("example_factor1", ['example_treatment1', 'example_treatment2', 'example_treatment3']),
+                    FactorModel("example_factor2", [True, False]),
+                ],
+                data_columns=['data_col1', 'data_col2', 'data_col1']
+            )
+            self.assert_(False)
+        except BaseError:
+            pass
 
 
 class TestRunTableModelSimple(unittest.TestCase):
@@ -13,7 +42,8 @@ class TestRunTableModelSimple(unittest.TestCase):
                 FactorModel("example_factor1", ['example_treatment1', 'example_treatment2', 'example_treatment3']),
                 FactorModel("example_factor2", [True, False]),
             ],
-            data_columns=['avg_cpu', 'avg_mem']
+            data_columns=['avg_cpu', 'avg_mem'],
+            shuffle=True
         )
 
     def test_generate_experiment_run_table(self):
