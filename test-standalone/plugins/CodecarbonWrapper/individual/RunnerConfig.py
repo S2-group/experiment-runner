@@ -14,6 +14,12 @@ from os.path import dirname, realpath
 from Plugins import CodecarbonWrapper
 from Plugins.CodecarbonWrapper import DataColumns as CCDataCols
 
+'''
+Test Description:
+
+Test Plugins.CodecarbonWrapper individual decorators
+'''
+
 class RunnerConfig:
     ROOT_DIR = Path(dirname(realpath(__file__)))
 
@@ -21,7 +27,7 @@ class RunnerConfig:
     name:                       str             = "new_runner_experiment"
     results_output_path:        Path             = ROOT_DIR / 'experiments'
     operation_type:             OperationType   = OperationType.AUTO
-    time_between_runs_in_ms:    int             = 1000
+    time_between_runs_in_ms:    int             = 100
 
     def __init__(self):
         """Executes immediately after program start, on config load"""

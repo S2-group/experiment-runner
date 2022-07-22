@@ -11,19 +11,27 @@ from typing import Dict, List, Any, Optional
 from pathlib import Path
 from os.path import dirname, realpath
 
-from Plugins import CodecarbonWrapper
-from Plugins.CodecarbonWrapper import DataColumns as CCDataCols
-
 '''
 Test Description:
 
-Test Plugins.CodecarbonWrapper class decorator
+Test functionality for arbitrary objects as factor levels
+  * When recovering from a crash, the generated objects from `create_run_table()` should be used
+    instead of the `str` values found in the stored csv.
 '''
 
-@CodecarbonWrapper.emission_tracker(
-    data_columns=[CCDataCols.EMISSIONS, CCDataCols.ENERGY_CONSUMED],
-    country_iso_code="NLD" # your country code
-)
+
+class CustomObject:
+    def __init__(self, x):
+        self._x = x+10
+
+    @property
+    def x(self):
+        return self._x
+
+    def __str__(self):
+        return f'{self._x}'
+
+
 class RunnerConfig:
     ROOT_DIR = Path(dirname(realpath(__file__)))
 
@@ -49,14 +57,18 @@ class RunnerConfig:
         ])
         self.run_table_model = None  # Initialized later
 
+        output.console_log("Custom config loaded")
+
     def create_run_table(self) -> List[Dict]:
-        factor1 = FactorModel("example_factor1", ['example_treatment1', 'example_treatment2', 'example_treatment3'])
+        x1, x2, x3 = CustomObject(1), CustomObject(2), CustomObject(3)
+
+        factor1 = FactorModel("example_factor1", [x1, x2, x3])
         factor2 = FactorModel("example_factor2", [True, False])
         self.run_table_model = RunTableModel(
             factors=[factor1, factor2],
             exclude_variations=[
-                {factor1: ['example_treatment1']},                   # all runs having treatment "example_treatment1" will be excluded
-                {factor1: ['example_treatment2'], factor2: [True]},  # all runs having the combination ("example_treatment2", True) will be excluded
+                {factor1: [x1]},
+                {factor1: [x2], factor2: [True]},
             ],
             data_columns=['avg_cpu', 'avg_mem']
         )
@@ -71,7 +83,7 @@ class RunnerConfig:
     def start_run(self, context: RunnerContext) -> None:
         output.console_log("Config.start_run() called!")
 
-    def start_measurement(self, context: RunnerContext):
+    def start_measurement(self, context: RunnerContext) -> None:
         output.console_log("Config.start_measurement() called!")
 
     def interact(self, context: RunnerContext) -> None:
@@ -86,7 +98,7 @@ class RunnerConfig:
     def populate_run_data(self, context: RunnerContext) -> Optional[Dict[str, SupportsStr]]:
         output.console_log("Config.populate_run_data() called!")
         return {
-            'avg_cpu': 52.3,
+            'avg_cpu': context.run_variation['example_factor1'].x,
             'avg_mem': 18.1
         }
 

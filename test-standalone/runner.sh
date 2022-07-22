@@ -15,6 +15,7 @@ fi
 
 set -e
 tests=( # TODO: gather_tests recursively
+  "${PROJECT_DIR}/test-standalone/core/arbitrary-objects"
   "${PROJECT_DIR}/test-standalone/plugins/CodecarbonWrapper/individual"
   "${PROJECT_DIR}/test-standalone/plugins/CodecarbonWrapper/combined"
 )
@@ -27,7 +28,16 @@ for test in "${tests[@]}"; do
     rm -rf "$test/experiments"
 
     echo " [*] Executing"
-    python experiment-runner/ "${test}/RunnerConfig.py"
+    python experiment-runner/ "$test/RunnerConfig.py"
+
+    # Simulate a crash
+    if [ -f "$test/Crasher.py" ]; then
+        echo " [*] Modifying generated run table to simulate a crash"
+        python "$test/Crasher.py"
+
+        echo " [*] Re-running experiment"
+        python experiment-runner/ "$test/RunnerConfig.py"
+    fi
 
     echo " [*] Validating"
     python "$test/Validator.py"
