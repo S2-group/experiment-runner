@@ -36,7 +36,7 @@ class ExperimentController:
 
         self.csv_data_manager = CSVOutputManager(self.config.experiment_path)
         self.json_data_manager = JSONOutputManager(self.config.experiment_path)
-        self.run_table = self.config.create_run_table()
+        self.run_table = self.config.create_run_table_model().generate_experiment_run_table()
 
         # Create experiment output folder, and in case that it exists, check if we can resume
         self.restarted = False

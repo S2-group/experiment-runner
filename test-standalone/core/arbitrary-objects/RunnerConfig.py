@@ -15,7 +15,7 @@ from os.path import dirname, realpath
 Test Description:
 
 Test functionality for arbitrary objects as factor levels
-  * When recovering from a crash, the generated objects from `create_run_table()` should be used
+  * When recovering from a crash, the generated objects from `create_run_table_model()` should be used
     instead of the `str` values found in the stored csv.
 '''
 
@@ -59,7 +59,7 @@ class RunnerConfig:
 
         output.console_log("Custom config loaded")
 
-    def create_run_table(self) -> List[Dict]:
+    def create_run_table_model(self) -> RunTableModel:
         x1, x2, x3 = CustomObject(1), CustomObject(2), CustomObject(3)
 
         factor1 = FactorModel("example_factor1", [x1, x2, x3])
@@ -72,7 +72,7 @@ class RunnerConfig:
             ],
             data_columns=['avg_cpu', 'avg_mem']
         )
-        return self.run_table_model.generate_experiment_run_table()
+        return self.run_table_model
 
     def before_experiment(self) -> None:
         output.console_log("Config.before_experiment() called!")

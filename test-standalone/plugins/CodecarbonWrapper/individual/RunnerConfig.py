@@ -46,7 +46,7 @@ class RunnerConfig:
         self.run_table_model = None  # Initialized later
 
     @CodecarbonWrapper.add_data_columns([CCDataCols.EMISSIONS, CCDataCols.ENERGY_CONSUMED])
-    def create_run_table(self) -> List[Dict]:
+    def create_run_table_model(self) -> RunTableModel:
         factor1 = FactorModel("example_factor1", ['example_treatment1', 'example_treatment2', 'example_treatment3'])
         factor2 = FactorModel("example_factor2", [True, False])
         self.run_table_model = RunTableModel(
@@ -57,7 +57,7 @@ class RunnerConfig:
             ],
             data_columns=['avg_cpu', 'avg_mem']
         )
-        return self.run_table_model.generate_experiment_run_table()
+        return self.run_table_model
 
     def before_experiment(self) -> None:
         output.console_log("Config.before_experiment() called!")

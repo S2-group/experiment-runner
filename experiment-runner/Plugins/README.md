@@ -44,7 +44,7 @@ from Plugins.CodecarbonWrapper import DataColumns as CCDataCols
 class RunnerConfig:
 
     @CodecarbonWrapper.add_data_columns([CCDataCols.EMISSIONS, CCDataCols.ENERGY_CONSUMED])
-    def create_run_table(self):
+    def create_run_table_model(self):
         ...
     
     @CodecarbonWrapper.start_emission_tracker(

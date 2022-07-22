@@ -54,8 +54,8 @@ class RunnerConfig:
         self.run_table_model = None  # Initialized later
         output.console_log("Custom config loaded")
 
-    def create_run_table(self) -> List[Dict]:
-        """Create and return the run_table here. A run_table is a List (rows) of tuples (columns), 
+    def create_run_table_model(self) -> RunTableModel:
+        """Create and return the run_table model here. A run_table is a List (rows) of tuples (columns),
         representing each run performed"""
         cpu_limit_factor = FactorModel("cpu_limit", [20, 50, 70 ])
         pin_core_factor  = FactorModel("pin_core" , [True, False])
@@ -66,7 +66,7 @@ class RunnerConfig:
             ],
             data_columns=['avg_cpu']
         )
-        return self.run_table_model.generate_experiment_run_table()
+        return self.run_table_model
 
     def before_experiment(self) -> None:
         """Perform any activity required before starting the experiment here

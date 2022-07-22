@@ -50,8 +50,8 @@ class RunnerConfig:
 
         output.console_log("Custom config loaded")
 
-    def create_run_table(self) -> List[Dict]:
-        """Create and return the run_table here. A run_table is a List (rows) of tuples (columns), 
+    def create_run_table_model(self) -> RunTableModel:
+        """Create and return the run_table model here. A run_table is a List (rows) of tuples (columns),
         representing each run performed"""
         factor1 = FactorModel("example_factor1", ['example_treatment1', 'example_treatment2', 'example_treatment3'])
         factor2 = FactorModel("example_factor2", [True, False])
@@ -63,7 +63,7 @@ class RunnerConfig:
             ],
             data_columns=['avg_cpu', 'avg_mem']
         )
-        return self.run_table_model.generate_experiment_run_table()
+        return self.run_table_model
 
     def before_experiment(self) -> None:
         """Perform any activity required before starting the experiment here

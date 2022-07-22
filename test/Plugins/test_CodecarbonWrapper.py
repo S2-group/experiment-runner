@@ -24,8 +24,8 @@ class TestEmissionTrackerIndividual(unittest.TestCase):
             shutil.rmtree(self.__class__.tmpdir)
 
         @CodecarbonWrapper.add_data_columns([CCDataCols.EMISSIONS, CCDataCols.ENERGY_CONSUMED])
-        def create_run_table(self):
-            super().create_run_table()
+        def create_run_table_model(self):
+            return super().create_run_table_model()
 
         @CodecarbonWrapper.start_emission_tracker(
             country_iso_code="NLD",
@@ -52,7 +52,7 @@ class TestEmissionTrackerIndividual(unittest.TestCase):
 
     def setUp(self) -> None:
         self.runner_config = self.__class__.EmissionTrackerConfig()
-        self.run_table = self.runner_config.create_run_table()
+        self.run_table = self.runner_config.create_run_table_model().generate_experiment_run_table()
 
     def tearDown(self) -> None:
         self.runner_config.clear()
@@ -97,7 +97,7 @@ class TestEmissionTrackerCombined(unittest.TestCase):
 
     def setUp(self) -> None:
         self.runner_config = self.__class__.EmissionTrackerConfig()
-        self.run_table = self.runner_config.create_run_table()
+        self.run_table = self.runner_config.create_run_table_model().generate_experiment_run_table()
 
     def tearDown(self) -> None:
         self.runner_config.clear()
