@@ -15,7 +15,7 @@ Experiment Runner is a generic framework to automatically execute measurement-ba
 
 ## Requirements
 
-The framework has been tested with Python3 version 3.8, but should also work with any higher version. It has been tested under a Linux OS.
+The framework has been tested with Python3 version 3.8, but should also work with any higher version. It has been tested under a Linux OS. It does **not** work on Windows/macOS.
 
 To get started:
 
@@ -30,8 +30,6 @@ To verify installation, run:
 ```bash
 python experiment-runner/ examples/hello-world/RunnerConfig.py
 ```
-
-*(N.B.: The python module `multiprocessing` needs to be supported by the system. Experiment runner might not run on macOS with python 3.8 due to a bug, so a higher python version is needed. (untested))*
 
 ## Running
 
