@@ -11,6 +11,7 @@ from ConfigValidator.Config.RunnerConfig import RunnerConfig
 from ProgressManager.Output.OutputProcedure import OutputProcedure as output
 
 from Plugins import CodecarbonWrapper
+from Plugins.CodecarbonWrapper import DataColumns as CCDataCols
 
 
 class TestEmissionTrackerIndividual(unittest.TestCase):
@@ -22,7 +23,7 @@ class TestEmissionTrackerIndividual(unittest.TestCase):
             print(f'Clearing tmpdir {self.__class__.tmpdir}')
             shutil.rmtree(self.__class__.tmpdir)
 
-        @CodecarbonWrapper.add_co2_data_column
+        @CodecarbonWrapper.add_data_columns([CCDataCols.EMISSIONS, CCDataCols.ENERGY_CONSUMED])
         def create_run_table(self):
             super().create_run_table()
 
@@ -41,7 +42,7 @@ class TestEmissionTrackerIndividual(unittest.TestCase):
         def stop_measurement(self, context: RunnerContext):
             super().stop_measurement(context)
 
-        @CodecarbonWrapper.populate_co2_data
+        @CodecarbonWrapper.populate_data_columns
         def populate_run_data(self, context: RunnerContext):
             output.console_log("Config.populate_run_data() called!")
             return {
@@ -61,8 +62,8 @@ class TestEmissionTrackerIndividual(unittest.TestCase):
         self.runner_config.interact(None)
         self.runner_config.stop_measurement(None)
         run_data = self.runner_config.populate_run_data(None)
-        self.assertIn('__co2_emissions', run_data)
-        self.assertTrue(run_data['__co2_emissions'] > 0)
+        self.assertTrue(run_data[CCDataCols.EMISSIONS.name] > 0)
+        self.assertTrue(run_data[CCDataCols.ENERGY_CONSUMED.name] > 0)
         self.assertTrue(run_data['avg_cpu'] == 52.3)
         self.assertTrue(run_data['avg_mem'] == 18.1)
         self.assertTrue( (Path(self.runner_config.tmpdir) / 'emissions.csv').is_file() )
@@ -74,6 +75,7 @@ class TestEmissionTrackerCombined(unittest.TestCase):
     tmpdir: AnyStr = tempfile.mkdtemp()
 
     @CodecarbonWrapper.emission_tracker(
+        data_columns=[CCDataCols.EMISSIONS, CCDataCols.ENERGY_CONSUMED],
         country_iso_code="NLD",
         output_dir=tmpdir
     )
@@ -105,7 +107,8 @@ class TestEmissionTrackerCombined(unittest.TestCase):
         self.runner_config.interact(None)
         self.runner_config.stop_measurement(None)
         run_data = self.runner_config.populate_run_data(None)
-        self.assertIn('__co2_emissions', run_data)
+        self.assertTrue(run_data[CCDataCols.EMISSIONS.name] > 0)
+        self.assertTrue(run_data[CCDataCols.ENERGY_CONSUMED.name] > 0)
         self.assertTrue(run_data['avg_cpu'] == 52.3)
         self.assertTrue(run_data['avg_mem'] == 18.1)
         self.assertTrue( (Path(TestEmissionTrackerCombined.tmpdir) / 'emissions.csv').is_file() )

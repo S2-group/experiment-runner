@@ -23,25 +23,27 @@ To simply add a CO2 data column, use the following snippet:
 
 ```python
 from Plugins import CodecarbonWrapper
-
+from Plugins.CodecarbonWrapper import DataColumns as CCDataCols
 
 @CodecarbonWrapper.emission_tracker(
+    data_columns=[CCDataCols.EMISSIONS, CCDataCols.ENERGY_CONSUMED],
     country_iso_code="NLD" # your country code
 )
 class RunnerConfig:
     ...
 ```
 
-This will add an `__co2_emissions` data column in the generated run_table.csv.
+This will add `codecarbon___emissions` and `codecarbon___energy_consumed` data columns in the generated run_table.csv.
 
 For a more fine-grained approach, the above snippet is equivalent to the following:
 
 ```python
 from Plugins import CodecarbonWrapper
+from Plugins.CodecarbonWrapper import DataColumns as CCDataCols
 
 class RunnerConfig:
 
-    @CodecarbonWrapper.add_co2_data_column
+    @CodecarbonWrapper.add_data_columns([CCDataCols.EMISSIONS, CCDataCols.ENERGY_CONSUMED])
     def create_run_table(self):
         ...
     
@@ -55,7 +57,7 @@ class RunnerConfig:
     def stop_measurement(self, context: RunnerContext):
         ...
     
-    @CodecarbonWrapper.populate_co2_data
+    @CodecarbonWrapper.populate_data_columns
     def populate_run_data(self, context: RunnerContext):
         ...
 ```

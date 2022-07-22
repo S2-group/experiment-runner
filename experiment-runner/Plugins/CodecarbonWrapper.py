@@ -1,24 +1,40 @@
-############################################### codecarbon plugin ###############################################
-#
-# pip install codecarbon
-# Relevant issues:
-#  * "AttributeError: Jumbotron was deprecated in dash-bootstrap-components version 1.0.0." - https://github.com/mlco2/codecarbon/issues/319
-#  * "Unable to read Intel RAPL files for CPU power : Permission denied" https://github.com/mlco2/codecarbon/issues/244
-# To find country codes, use the ISO 3166-1 Alpha-3 code from https://en.wikipedia.org/wiki/List_of_ISO_3166_country_codes
-#
-#################################################################################################################
+
+from enum import Enum, auto
+from pathlib import Path
+from typing import Iterable
 
 import codecarbon
+import csv
+import re
 
 from ConfigValidator.Config.Models.RunnerContext import RunnerContext
 from ConfigValidator.Config.RunnerConfig import RunnerConfig
 
+class DataColumns(Enum):
+    EMISSIONS         = auto()
+    EMISSIONS_RATE    = auto()
+    CPU_POWER         = auto()
+    GPU_POWER         = auto()
+    RAM_POWER         = auto()
+    CPU_ENERGY        = auto()
+    GPU_ENERGY        = auto()
+    RAM_ENERGY        = auto()
+    ENERGY_CONSUMED   = auto()
+
+    _PATTERN = re.compile(r'(codecarbon__)(.+)') # group1: prefix, group2: name
+
+    @property
+    def name(self) -> str:
+        return f'codecarbon__{super().name.lower()}'
+
 def emission_tracker(online=False, *decargs, **deckwargs):
-    def emission_tracker_decorator(cls):
-        cls.create_run_table  = add_co2_data_column(cls.create_run_table)
+    def emission_tracker_decorator(cls: RunnerConfig.__class__):
+        data_columns =  deckwargs.pop('data_columns', [DataColumns.EMISSIONS])
+
+        cls.create_run_table  = add_data_columns(data_columns)(cls.create_run_table)
         cls.start_measurement = start_emission_tracker(online=online, *decargs, **deckwargs)(cls.start_measurement)
         cls.stop_measurement  = stop_emission_tracker(cls.stop_measurement)
-        cls.populate_run_data = populate_co2_data(cls.populate_run_data)
+        cls.populate_run_data = populate_data_columns(cls.populate_run_data)
 
         return cls
     return emission_tracker_decorator
@@ -46,27 +62,37 @@ def stop_emission_tracker(func):
         self: RunnerConfig = args[0]
 
         ret_val = func(*args, **kwargs)
-        self.__emissions__ = self.__emission_tracker__.stop()  # store it for usage later
+        self.__emission_tracker__.stop()
         return ret_val
     return wrapper
 
-def add_co2_data_column(func):
-    def wrapper(*args, **kwargs):
-        self: RunnerConfig = args[0]
+def add_data_columns(data_cols: Iterable[DataColumns]):
+    def add_data_columns_decorator(func):
+        def wrapper(*args, **kwargs):
+            self: RunnerConfig = args[0]
 
-        func(*args, **kwargs)  # will set self.run_table_model. Discard result
-        self.run_table_model.get_data_columns().insert(2, '__co2_emissions')
-        return self.run_table_model.generate_experiment_run_table()  # FIXME: this is bad
-    return wrapper
+            func(*args, **kwargs)  # will set self.run_table_model. Discard result
+            for dc in data_cols:
+                self.run_table_model.get_data_columns().append(dc.name)
+            return self.run_table_model.generate_experiment_run_table()  # FIXME: this is bad
+        return wrapper
+    return add_data_columns_decorator
 
-def populate_co2_data(func):
+def populate_data_columns(func):
     def wrapper(*args, **kwargs):
         self: RunnerConfig = args[0]
 
         ret_val = func(*args, **kwargs)
         if ret_val is None:
             ret_val = {}
-        ret_val['__co2_emissions'] = self.__emissions__
-
+        with open(Path(self.__emission_tracker__._output_dir) / Path(self.__emission_tracker__._output_file)) as csvfile:
+            reader = csv.DictReader(csvfile)
+            rows = [row for row in reader]
+            assert(len(rows) == 1)
+            data = rows[0]
+            for dc in self.run_table_model.get_data_columns():
+                m = DataColumns._PATTERN.value.match(dc)
+                if m:
+                    ret_val[dc] = float(data[m.group(2)])
         return ret_val
     return wrapper
