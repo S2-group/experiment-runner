@@ -8,7 +8,6 @@ examples/linux-ps-profiling/primer
 .vscode
 .python-version
 tmp/
-test/_trial_temp/
-test/Plugins/Profilers/_trial_temp/
+_trial_temp/
 pycharm-interpreter.sh
 python
