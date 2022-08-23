@@ -9,5 +9,6 @@ examples/linux-ps-profiling/primer
 .python-version
 tmp/
 test/_trial_temp/
+test/Plugins/Profilers/_trial_temp/
 pycharm-interpreter.sh
 python
