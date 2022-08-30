@@ -61,7 +61,7 @@ class RunnerConfig:
         cpu_limit_factor = FactorModel("cpu_limit", [25, 50, 100])
         self.run_table_model = RunTableModel(
             factors = [cpu_limit_factor],
-            data_columns=['total_energy']
+            data_columns=['avg_cpu', 'total_energy']
         )
         return self.run_table_model
 
@@ -129,6 +129,7 @@ class RunnerConfig:
         # powerjoular.csv-PID.csv - Power consumption of that specific process
         df = pd.read_csv(context.run_dir / f"powerjoular.csv-{self.target.pid}.csv")
         run_data = {
+            'avg_cpu': round(df['CPU Utilization'].sum(), 3),
             'total_energy': round(df['CPU Power'].sum(), 3),
         }
         return run_data
