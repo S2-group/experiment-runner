@@ -72,3 +72,37 @@ class RunnerConfig:
 ### Side notes
 
 * To find country codes, use the ISO 3166-1 Alpha-3 code from [wikipedia](https://en.wikipedia.org/wiki/List_of_ISO_3166_country_codes)
+
+---
+
+## WattsUpPro.py
+
+### Overview
+
+This plugin is a port of the [Watts up? Pro](https://github.com/isaaclino/wattsup) project. It logs data from a "Watts Up Pro" power meter.
+
+### Requirements
+
+* (Hardware) A [Watts Up Pro power meter](https://www.vernier.com/files/manuals/wu-pro.pdf)
+
+```bash
+pip install pyserial
+```
+
+### Usage
+
+```python
+from Plugins.Profilers.WattsUpPro import WattsUpPro
+
+class RunnerConfig:
+    def start_measurement(self, context: RunnerContext) -> None:
+        meter = WattsUpPro('/dev/ttyUSB0', 1.0)
+        meter.log(5, str(context.run_dir.resolve() / 'sample.log'))
+
+    def populate_run_data(self, context: RunnerContext) -> Optional[Dict[str, Any]]:
+        run_data = {}
+        with open(context.run_dir.resolve() / 'sample.log') as f:
+            lines = f.readlines()
+        # prase lines and populate `run_data`
+        return run_data
+```
