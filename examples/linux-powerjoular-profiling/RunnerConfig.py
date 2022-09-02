@@ -68,7 +68,7 @@ class RunnerConfig:
     def before_experiment(self) -> None:
         """Perform any activity required before starting the experiment here
         Invoked only once during the lifetime of the program."""
-        subprocess.check_call(['make'], cwd=self.ROOT_DIR) # compile
+        pass
 
     def before_run(self) -> None:
         """Perform any activity required before starting a run.
@@ -83,7 +83,7 @@ class RunnerConfig:
         cpu_limit = context.run_variation['cpu_limit']
 
         # start the target
-        self.target = subprocess.Popen(['./primer'],
+        self.target = subprocess.Popen(['python', './primer.py'],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=self.ROOT_DIR,
         )
 

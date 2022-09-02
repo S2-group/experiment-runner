@@ -1,16 +1,16 @@
 
 # `powerjoular` profiler
 
-A simple Linux example, that runs an ELF binary and measures its CPU usage and power consumption using [PowerJoular](https://gitlab.com/joular/powerjoular).
+A simple Linux example, that runs a python program and measures its CPU usage and power consumption using [PowerJoular](https://gitlab.com/joular/powerjoular).
 
-As an example ELF binary, a simple C program is used that repeatedly checks if random numbers are prime or not.
+As an example program, a simple program is used that repeatedly checks if random numbers are prime or not.
 
 ## Requirements
 
 Install the requirements to run:
 
 ```bash
-sudo apt install cpulimit gcc
+sudo apt install cpulimit
 pip install -r requirements.txt
 ```
 
