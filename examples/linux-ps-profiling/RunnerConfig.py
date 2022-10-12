@@ -105,7 +105,7 @@ class RunnerConfig:
         #   cpu utilization of the process in "##.#" format.  Currently, it is the CPU time used
         #   divided by the time the process has been running (cputime/realtime ratio), expressed
         #   as a percentage.  It will not add up to 100% unless you are lucky.  (alias pcpu).
-        profiler_cmd = f'ps -p {self.target.pid} --noheader -o %cpu'
+        profiler_cmd = f'ps -p {self.target.pid} --noheader -o %cpu %mem'
         wrapper_script = f'''
         while true; do {profiler_cmd}; sleep 1; done
         '''
@@ -141,7 +141,7 @@ class RunnerConfig:
         You can also store the raw measurement data under `context.run_dir`
         Returns a dictionary with keys `self.run_table_model.data_columns` and their values populated"""
 
-        df = pd.DataFrame(columns=['cpu_usage'])
+        df = pd.DataFrame(columns=['cpu_usage', 'mem_usage'])
         for i, l in enumerate(self.profiler.stdout.readlines()):
             cpu_usage=float(l.decode('ascii').strip())
             df.loc[i] = [cpu_usage]
