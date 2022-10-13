@@ -3,7 +3,7 @@
 examples/linux-ps-profiling/primer
 examples/linux-powerjoular-profiling/primer
 **/__pycache__/
-**/experiments/
+# **/experiments/
 */.DS_Store
 .DS_Store
 .vscode
