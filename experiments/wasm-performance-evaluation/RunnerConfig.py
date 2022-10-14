@@ -1,4 +1,3 @@
-from experiment-runner.Plugins.WasmExperiments.Profiler import ExperimentReport
 from EventManager.Models.RunnerEvents import RunnerEvents
 from EventManager.EventSubscriptionController import EventSubscriptionController
 from ConfigValidator.Config.Models.RunTableModel import RunTableModel
@@ -99,9 +98,12 @@ class RunnerConfig:
         """Perform any activity required before starting the experiment here
         Invoked only once during the lifetime of the program."""
 
+        pass
+
     def before_run(self) -> None:
         """Perform any activity required before starting a run.
         No context is available here as the run is not yet active (BEFORE RUN)"""
+
         pass
 
     def start_run(self, context: RunnerContext) -> None:
@@ -109,51 +111,32 @@ class RunnerConfig:
         For example, starting the target system to measure.
         Activities after starting the run should also be performed here."""
 
-        # TODO: select right binary and runtime
-        file_name = "/home/max/Documents/Studies/Master/Year2/Period1/GreenLab/dev/experiment-runner-green-lab-2022/experiments/binaries/nbody.c.wasm"
-        runtime = "/home/max/.wasmer/bin/wasmer"
-
-        # measure size of binary
-        file_stats = os.stat(file_name)
-        context.run_variation["storage"] = file_stats.st_size
-
-        # TODO: set target to RUNTIME BINARY_ALGORITHM
-        # start the target
-        time = ["/usr/bin/time", "-f", "%C, %e", "-o", f"{context.run_dir}/runtime.csv"]
-        # runtime_command = [runtime, file_name, '--', '31211111']
-
-        runtime_command = shlex.split("stress --cpu 1")
-
-        self.target = subprocess.Popen(runtime_command,  # TODO: set a per-benchmark input
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=self.ROOT_DIR,
-        )
-
-        # Configure the environment based on the current variation
-        # does not apply
+        self.target, self.target_pid = self.runner.start(context)
         
 
     def start_measurement(self, context: RunnerContext) -> None:
         """Perform any activity required for starting measurements."""
-        self.profiler = WasmProfiler(self.target, context)
+
+        self.profiler = WasmProfiler(self.target_pid, context)
         self.profiler.start()
 
     def interact(self, context: RunnerContext) -> None:
         """Perform any interaction with the running target system here, or block here until the target finishes."""
+
         # TODO: wait until it is finished
         # self.target.wait()
-        time.sleep(10)
+        self.runner.interact(context)
 
     def stop_measurement(self, context: RunnerContext) -> None:
         """Perform any activity here required for stopping measurements."""
+
         self.profiler.stop()
 
     def stop_run(self, context: RunnerContext) -> None:
         """Perform any activity here required for stopping the run.
         Activities after stopping the run should also be performed here."""
 
-        # shutdown runtime (if needed)
-        self.target.kill()
-        self.target.wait()
+        self.runner.stop()
     
     def populate_run_data(self, context: RunnerContext) -> Optional[Dict[str, Any]]:
         """Parse and process any measurement data here.
@@ -171,7 +154,11 @@ class RunnerConfig:
         # powerjoular.csv-PID.csv - Power consumption of that specific process
 
         report = self.profiler.report()
-        return report.populate()
+        run_data = report.populate()
+
+        run_data["execution_time"] = self.runner.report_time()
+
+        return run_data
 
     def after_experiment(self) -> None:
         """Perform any activity required after stopping the experiment here

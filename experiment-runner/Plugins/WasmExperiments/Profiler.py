@@ -17,8 +17,8 @@ class Profiler:
             raise LookupError("\"populate\" is not implementented by this object!")
 
 
-    def __init__(self, process: Popen, context: RunnerContext) -> None:
-        self.target: Popen = process
+    def __init__(self, target_pid: int, context: RunnerContext) -> None:
+        self.target_pid: int = target_pid
         self.context: RunnerContext = context
         self.process: Popen = None
 
@@ -69,7 +69,7 @@ class PerformanceProfiler(Profiler):
 
     
     def start(self) -> None:
-        profiler_cmd = f"ps -p {self.target.pid + 1} --noheader -o '%cpu %mem'"
+        profiler_cmd = f"ps -p {self.target_pid} --noheader -o '%cpu %mem'"
         timer_cmd = f"while true; do {profiler_cmd}; sleep 1; done"
         self.create_process(["sh", "-c", timer_cmd])
 
@@ -105,11 +105,11 @@ class EnergyProfiler(Profiler):
 
     
     def start(self) -> None:
-        profiler_cmd = f"powerjoular -l -p {self.target.pid} -f {self.context.run_dir / 'powerjoular.csv'}"
+        profiler_cmd = f"powerjoular -l -p {self.target_pid} -f {self.context.run_dir / 'powerjoular.csv'}"
         self.create_process(split(profiler_cmd))
 
     def report(self) -> EnergyReport:
-        data_frame = read_csv(self.context.run_dir / f"powerjoular.csv-{self.target.pid}.csv")
+        data_frame = read_csv(self.context.run_dir / f"powerjoular.csv-{self.target_pid}.csv")
         data_frame.to_csv(self.context.run_dir / 'raw_data.csv', index=False)
         return EnergyReport(data_frame)
 
