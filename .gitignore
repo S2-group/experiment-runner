@@ -4,6 +4,7 @@ examples/linux-ps-profiling/primer
 examples/linux-powerjoular-profiling/primer
 **/__pycache__/
 # **/experiments/
+**/compare_wasm/
 */.DS_Store
 .DS_Store
 .vscode

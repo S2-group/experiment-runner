@@ -1,10 +1,10 @@
 import string
 from typing import Any, List
 from subprocess import Popen, PIPE
-from os import kill
-from signal import SIGINT
-from os import stat
+from os import stat, kill, waitpid
+from signal import SIGINT, SIGTERM, Signals
 from os.path import join
+from shlex import split
 from time import sleep
 
 from ConfigValidator.Config.Models.FactorModel import FactorModel
@@ -18,7 +18,6 @@ class Runner:
 
     def __init__(self) -> None:
         self.process = None
-        self.time_output = None
 
     @property
     def stdin(self) -> Any:
@@ -37,35 +36,25 @@ class Runner:
         raise LookupError("\"factors\" is not implementented by this object!")
 
     def create_process(self, command: List[str]) -> None:
+        self.reset()
         self.process = Popen(command, stdin=PIPE, stdout=PIPE, stderr=PIPE)
 
-    def create_timed_process(self, command: string, output_path: string = None) -> int:
+    def create_shell_process(self, command: string) -> None:
+        self.reset()
+        self.process = Popen(command, stdin=PIPE, stdout=PIPE, stderr=PIPE, shell=True)
 
-        self.time_output = output_path
-
-        if self.time_output is not None:
-            time_script = f"/usr/bin/time -f %C -o {self.time_output} '{command}' & time_pid=$!; echo $(pgrep -P $timepid)"
-        else:
-            time_script = f"/usr/bin/time -f %C '{command}' & time_pid=$!; echo $(pgrep -P $timepid)"
-
-        #/usr/bin/time -f %C 'stess --cpu 1' & time_pid=$!; echo $(pgrep -P $timepid)
-
-        self.create_process(["sh", "-c", time_script])
-        sleep(2)
-
-        self.stdout.flush()
-        subprocess_id = self.stdout.readlines()
-        print(subprocess_id)
-
-        return int(subprocess_id)
-
-    def reset(self) -> None:
+    def wait_for_process(self):
         if self.process is not None:
-            self.process.kill()
             self.process.wait()
 
+    def kill_process(self, signal: Signals):
+        if self.process is not None:
+            kill(self.process.pid, signal)
+            self.wait_for_process()
+
+    def reset(self) -> None:
+        self.kill_process(SIGTERM)
         self.process = None
-        self.time_output = None
 
     def start(self, context: RunnerContext) -> None:
         self.reset()
@@ -74,32 +63,86 @@ class Runner:
         raise LookupError("\"interact\" is not implementented by this object!")
 
     def stop(self) -> None:
-        kill(self.process.pid, SIGINT)
-        self.process.wait()
-
-    def report_time(self) -> float:
-        raise LookupError("\"report\" is not implementented by this object!")
+        self.kill_process(SIGTERM)
 
 
 RunnerConfig = Runner.RunnerConfig
 
 
-class WasmRunner(Runner):
+class TimedRunner(Runner):
 
-    class WasmRunnerCofig(RunnerConfig):
+    class TimedRunnerConfig(RunnerConfig):
+        pass
+
+    def __init__(self) -> None:
+        super(TimedRunner, self).__init__()
+        
+        self.subprocess_id = None
+        self.time_output = None
+
+    def create_timed_process(self, command: string, output_path: string = None) -> None:
+
+        if output_path is not None:
+            time_script = f"/usr/bin/time -o {output_path} {command} & echo $(pgrep -P $(echo $!))"
+        else:
+            time_script = f"/usr/bin/time {command} & echo $(pgrep -P $(echo $!))"
+
+        self.create_shell_process(time_script)
+        sleep(1) # TODO: Figure our good timing to avoid premature reading
+        _ = self.stdout.readline() # skip default message by time
+
+        self.subprocess_id = int(self.stdout.readline().strip())
+        self.time_output = output_path
+
+    def wait_for_subprocess(self):
+        if self.subprocess_id is not None:
+            try:
+                waitpid(self.subprocess_id, 0)
+            except:
+                return
+
+    def kill_subprocess(self, signal: Signals):
+        if self.subprocess_id is not None:
+            kill(self.subprocess_id, signal)
+            self.wait_for_subprocess()
+
+    def reset(self) -> None:
+        self.kill_subprocess(SIGTERM)
+        super(TimedRunner, self).reset()
+
+        self.subprocess_id = None
+        self.time_output = None
+
+    def stop(self) -> None:
+        self.kill_subprocess(SIGTERM)
+        super(TimedRunner, self).stop()
+
+    def report_time(self) -> float:
+        raise LookupError("\"report\" is not implementented by this object!")
+
+
+TimedRunnerConfig = TimedRunner.TimedRunnerConfig
+
+
+class WasmRunner(TimedRunner):
+
+    class WasmRunnerCofig(TimedRunnerConfig):
         # Optional
-        WASMER = "/path/to/wasmer"
-        WASM_EDGE = "/path/to/wasm_edge"
+        DEBUG = True
+        WASMER_PATH = "/path/to/wasmer"
+        WASM_EDGE_PATH = "/path/to/wasm_edge"
 
         # Obligatory
         PROBLEM_DIR = "/path/to/problems/"
         ALGORITHMS = ["fannkuch_redux", "n_body", "mandelbrot", "k_nucleotide"]
         LANGUAGES = ["c", "rust", "javaScript", "go"]
-        RUNTIMES = [WASMER, WASM_EDGE]
+
+        RUNTIME_PATHS = { "wasmer": WASMER_PATH, "wasmEdge": WASM_EDGE_PATH }
+        RUNTIMES = RUNTIME_PATHS.keys()
 
         @classmethod
         def parameters(self, algorithm: string, language: string) -> string:
-            # TODO: Implementation
+            # TODO: Implementation of executable-specific parameters
             return ""
 
     
@@ -110,15 +153,9 @@ class WasmRunner(Runner):
         self.languages = FactorModel("language", WasmRunnerCofig.LANGUAGES)
         self.runtimes = FactorModel("runtime", WasmRunnerCofig.RUNTIMES)
 
-        self.subprocess_pid: int = None
-
     @property
     def factors(self) -> List[FactorModel]:
         return [self.algorithms, self.languages, self.runtimes]
-
-    def reset(self) -> None:
-        super(WasmRunner, self).reset()
-        self.subprocess_id = None
 
     def start(self, context: RunnerContext) -> None:
         super(WasmRunner, self).start(context)
@@ -128,7 +165,7 @@ class WasmRunner(Runner):
 
         algorithm = run_variation[self.algorithms.factor_name]
         language  = run_variation[self.languages.factor_name]
-        runtime   = run_variation[self.runtimes.factor_name]
+        runtime   = WasmRunnerCofig.RUNTIME_PATHS[run_variation[self.runtimes.factor_name]]
 
         executable = join(WasmRunnerCofig.PROBLEM_DIR, f"{algorithm}.{language}.wasm")
         parameters = WasmRunnerCofig.parameters(algorithm, language)
@@ -142,22 +179,29 @@ class WasmRunner(Runner):
         # executable_size = stat(executable).st_size
         # context.run_variation["storage"] = executable_size
 
-        # DEBUG COMMAND
-        print(f"Command: {command}")
-        command = "stress --cpu 1"
+        if WasmRunnerCofig.DEBUG:
+            # DEBUG COMMAND
+            print(f"Command: {command}")
+            command = "stress --cpu 1"
 
-        self.subprocess_id = self.create_timed_process(command, output_path)
-        return self.process, self.subprocess_pid
+        self.create_timed_process(command, output_path)
+
+        if WasmRunnerCofig.DEBUG:
+            # DEBUG COMMAND
+            self.subprocess_id += 1 # because stress is annoying
+            print(self.subprocess_id)
+
+        return self.process, self.subprocess_id
 
     def interact(self, context: RunnerContext) -> None:
         # DEBUG INTERACTION
-        sleep(10)
+        sleep(3)
         return
 
-        self.process.wait()
+        self.wait_for_subprocess()
 
     def report_time(self) -> float:
-        # TODO: Implementation
+        # TODO: Implementation parsing from self.time_output
         return 0.0
     
 
