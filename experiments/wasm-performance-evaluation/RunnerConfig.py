@@ -1,3 +1,4 @@
+from experiment-runner.Plugins.WasmExperiments.Profiler import ExperimentReport
 from EventManager.Models.RunnerEvents import RunnerEvents
 from EventManager.EventSubscriptionController import EventSubscriptionController
 from ConfigValidator.Config.Models.RunTableModel import RunTableModel
@@ -5,6 +6,9 @@ from ConfigValidator.Config.Models.FactorModel import FactorModel
 from ConfigValidator.Config.Models.RunnerContext import RunnerContext
 from ConfigValidator.Config.Models.OperationType import OperationType
 from ProgressManager.Output.OutputProcedure import OutputProcedure as output
+
+from Plugins.WasmExperiments.Runner import WasmRunner
+from Plugins.WasmExperiments.Profiler import WasmProfiler, WasmReport
 
 from typing import Dict, List, Any, Optional
 from pathlib import Path
@@ -81,15 +85,14 @@ class RunnerConfig:
     def create_run_table_model(self) -> RunTableModel:
         """Create and return the run_table model here. A run_table is a List (rows) of tuples (columns),
         representing each run performed"""
-        factor_test = FactorModel("test", ["whatever"])
-        factor_runtime = FactorModel("runtime", ["wasmer", "wasmEdge"])
-        factor_algorithm = FactorModel("algorithm", ["fannkuch_redux", "n_body", "mandelbrot", "k_nucleotide"])
-        factor_language = FactorModel("language", ["c", "rust", "javaScript", "go"])
+
+        self.runner = WasmRunner()
+
         self.run_table_model = RunTableModel(
-            #factors=[factor_runtime, factor_algorithm, factor_language],
-            factors=[factor_test],
-            data_columns=['energy_usage', 'execution_time', 'memory_usage', 'cpu_usage', 'storage']
+            factors= self.runner.factors,
+            data_columns=WasmReport.DATA_COLUMNS
         )
+
         return self.run_table_model
 
     def before_experiment(self) -> None:
@@ -107,8 +110,8 @@ class RunnerConfig:
         Activities after starting the run should also be performed here."""
 
         # TODO: select right binary and runtime
-        file_name = "/tmp/pycharm_project_960/experiments/binaries/nbody.c.wasm"
-        runtime = "/home/pi/.wasmer/bin/wasmer"
+        file_name = "/home/max/Documents/Studies/Master/Year2/Period1/GreenLab/dev/experiment-runner-green-lab-2022/experiments/binaries/nbody.c.wasm"
+        runtime = "/home/max/.wasmer/bin/wasmer"
 
         # measure size of binary
         file_stats = os.stat(file_name)
@@ -117,7 +120,9 @@ class RunnerConfig:
         # TODO: set target to RUNTIME BINARY_ALGORITHM
         # start the target
         time = ["/usr/bin/time", "-f", "%C, %e", "-o", f"{context.run_dir}/runtime.csv"]
-        runtime_command = [runtime, file_name, '--', '31211111']
+        # runtime_command = [runtime, file_name, '--', '31211111']
+
+        runtime_command = shlex.split("stress --cpu 1")
 
         self.target = subprocess.Popen(runtime_command,  # TODO: set a per-benchmark input
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=self.ROOT_DIR,
@@ -129,31 +134,18 @@ class RunnerConfig:
 
     def start_measurement(self, context: RunnerContext) -> None:
         """Perform any activity required for starting measurements."""
-        profilers = []
-
-        # config PS script and powerjoular
-        profiler_cmd = f"ps -p {self.target.pid} --noheader -o '%cpu %mem'"
-        powerjoular_cmd = f'powerjoular -l -p {self.target.pid} -f {context.run_dir / "powerjoular.csv"}'
-        # TODO: name needs to be changed in smart way
-        wrapper_script = f'while true; do {profiler_cmd}; sleep 1; done'
-
-        time.sleep(1)  # allow the process to run a little before measuring
-        profilers.append(subprocess.Popen(['sh', '-c', wrapper_script], stdout=subprocess.PIPE, stderr=subprocess.PIPE))
-        profilers.append(subprocess.Popen(shlex.split(powerjoular_cmd)))
-
-        self.profiler = profilers
+        self.profiler = WasmProfiler(self.target, context)
+        self.profiler.start()
 
     def interact(self, context: RunnerContext) -> None:
         """Perform any interaction with the running target system here, or block here until the target finishes."""
-
         # TODO: wait until it is finished
-        self.target.wait()
+        # self.target.wait()
+        time.sleep(10)
 
     def stop_measurement(self, context: RunnerContext) -> None:
         """Perform any activity here required for stopping measurements."""
-        for p in self.profiler:
-            os.kill(p.pid, signal.SIGINT)
-            p.wait()
+        self.profiler.stop()
 
     def stop_run(self, context: RunnerContext) -> None:
         """Perform any activity here required for stopping the run.
@@ -177,23 +169,9 @@ class RunnerConfig:
 
         # powerjoular.csv - Power consumption of the whole system
         # powerjoular.csv-PID.csv - Power consumption of that specific process
-        df = pd.read_csv(context.run_dir / f"powerjoular.csv-{self.target.pid}.csv")
-        df_ps = pd.DataFrame(columns=['cpu_usage', 'memory_usage'])
-        for i, l in enumerate(self.profiler[0].stdout.readlines()):  # TODO: depends on order + is cryptic
-            decoded_line = l.decode('ascii').strip()
-            decoded_arr = decoded_line.split("  ")
-            cpu_usage = float(decoded_arr[0])
-            mem_usage = float(decoded_arr[1])
-            df_ps.loc[i] = [cpu_usage, mem_usage]
 
-        df.to_csv(context.run_dir / 'raw_data.csv', index=False)
-        run_data = {
-            'cpu_usage': round(df_ps['cpu_usage'].mean(), 3),
-            'memory_usage': round(df_ps['memory_usage'].mean(), 3),  # TODO: still not shown properly
-            'energy_usage': round(df['CPU Power'].sum(), 3),
-            'execution_time': 'TODO',
-        }
-        return run_data
+        report = self.profiler.report()
+        return report.populate()
 
     def after_experiment(self) -> None:
         """Perform any activity required after stopping the experiment here

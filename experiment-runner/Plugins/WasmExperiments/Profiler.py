@@ -1,5 +1,5 @@
-from subprocess import Popen, PIPE, IO
-from typing import Dict, List
+from subprocess import Popen, PIPE
+from typing import Any, Dict, List
 from os import kill
 from signal import SIGINT
 from shlex import split
@@ -23,15 +23,15 @@ class Profiler:
         self.process: Popen = None
 
     @property
-    def stdin(self) -> IO:
+    def stdin(self) -> Any:
         return self.process.stdin
 
     @property
-    def stdout(self) -> IO:
+    def stdout(self) -> Any:
         return self.process.stdout
 
     @property
-    def stderr(self) -> IO:
+    def stderr(self) -> Any:
         return self.process.stderr
 
     def create_process(self, command: List[str]) -> None:
@@ -61,20 +61,21 @@ class PerformanceProfiler(Profiler):
             self.data_frame: DataFrame = data_frame
 
         def populate(self) -> Dict:
-            run_data = {
+            return {
                 'cpu_usage': round(self.data_frame['cpu_usage'].mean(), 3),
                 'memory_usage': round(self.data_frame['memory_usage'].mean(), 3),  # TODO: still not shown properly
                 'execution_time': 'TODO',
             }
 
     
-    def start(self):
-        profiler_cmd = f"ps -p {self.target.pid} --noheader -o '%cpu %mem'"
+    def start(self) -> None:
+        profiler_cmd = f"ps -p {self.target.pid + 1} --noheader -o '%cpu %mem'"
         timer_cmd = f"while true; do {profiler_cmd}; sleep 1; done"
         self.create_process(["sh", "-c", timer_cmd])
 
     def report(self) -> PerformanceReport:
         data_frame = DataFrame(columns=['cpu_usage', 'memory_usage'])
+
         for index, line in enumerate(self.stdout.readlines()):  # TODO: depends on order + is cryptic
             decoded_line = line.decode('ascii').strip()
             decoded_arr = decoded_line.split("  ")
@@ -98,12 +99,12 @@ class EnergyProfiler(Profiler):
             self.data_frame: DataFrame = data_frame
 
         def populate(self) -> Dict:
-            run_data = {
+            return {
                 'energy_usage': round(self.data_frame['CPU Power'].sum(), 3)
             }
 
     
-    def start(self):
+    def start(self) -> None:
         profiler_cmd = f"powerjoular -l -p {self.target.pid} -f {self.context.run_dir / 'powerjoular.csv'}"
         self.create_process(split(profiler_cmd))
 
@@ -116,13 +117,15 @@ class EnergyProfiler(Profiler):
 EnergyReport = EnergyProfiler.EnergyReport
 
 
-class ExperimentProfiler(Profiler):
+class WasmProfiler(Profiler):
 
 
-    class ExperimentReport(Report):
+    class WasmReport(Report):
+
+        DATA_COLUMNS = ['energy_usage', 'execution_time', 'memory_usage', 'cpu_usage', 'storage']
         
         def __init__(self, performance_report: PerformanceReport, energy_report: EnergyReport) -> None:
-            super(ExperimentReport, self).__init__()
+            super(WasmReport, self).__init__()
 
             self.performance_report: PerformanceReport = performance_report
             self.energy_report: EnergyReport = energy_report
@@ -136,7 +139,7 @@ class ExperimentProfiler(Profiler):
             return self.energy_report.data_frame
 
         def populate(self) -> Dict:
-            run_data = {
+            return {
                 'cpu_usage': round(self.performance_data['cpu_usage'].mean(), 3),
                 'memory_usage': round(self.performance_data['memory_usage'].mean(), 3),  # TODO: still not shown properly
                 'energy_usage': round(self.energy_data['CPU Power'].sum(), 3),
@@ -145,7 +148,7 @@ class ExperimentProfiler(Profiler):
 
     
     def __init__(self, process: Popen, context: RunnerContext) -> None:
-        super(ExperimentProfiler, self).__init__(process)
+        super(WasmProfiler, self).__init__(process, context)
     
         self.performance_profiler: PerformanceProfiler = PerformanceProfiler(process, context)
         self.energy_profiler: EnergyProfiler = EnergyProfiler(process, context)
@@ -158,23 +161,23 @@ class ExperimentProfiler(Profiler):
     def energy_process(self) -> Popen:
         return self.energy_profiler.process
 
-    def start(self):
+    def start(self) -> None:
         self.performance_profiler.start()
         self.energy_profiler.start()
         sleep(1)
 
-    def stop(self):
+    def stop(self) -> None:
         # making sure they get terminated as quickly as possible without delay
         kill(self.performance_process.pid, SIGINT)
         kill(self.energy_process.pid, SIGINT)
         self.performance_process.wait()
         self.energy_process.wait()
 
-    def report(self) -> ExperimentReport:
+    def report(self) -> WasmReport:
         performance_report = self.performance_profiler.report()
         energy_report      = self.energy_profiler.report()
 
-        return ExperimentReport(performance_report, energy_report)
+        return WasmReport(performance_report, energy_report)
 
 
-ExperimentReport = ExperimentProfiler.ExperimentReport
+WasmReport = WasmProfiler.WasmReport
