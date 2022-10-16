@@ -1,15 +1,16 @@
-from subprocess import Popen, PIPE
-from typing import Any, Dict, List
+from subprocess import Popen
+from typing import Dict
 from os import kill
-from signal import SIGINT, Signals
+from signal import SIGINT
 from shlex import split
 from time import sleep
 from pandas import DataFrame, read_csv
 
+from Plugins.WasmExperiments.ProcessManager import ProcessManager
 from ConfigValidator.Config.Models.RunnerContext import RunnerContext
 
 
-class Profiler:
+class Profiler(ProcessManager):
 
     class Report:
 
@@ -18,39 +19,13 @@ class Profiler:
 
 
     def __init__(self, target_pid: int, context: RunnerContext) -> None:
+        super(Profiler, self).__init__()
+
         self.target_pid: int = target_pid
         self.context: RunnerContext = context
-        self.process: Popen = None
-
-    @property
-    def stdin(self) -> Any:
-        return self.process.stdin
-
-    @property
-    def stdout(self) -> Any:
-        return self.process.stdout
-
-    @property
-    def stderr(self) -> Any:
-        return self.process.stderr
-
-    def create_process(self, command: List[str]) -> None:
-        self.process = Popen(command, stdin=PIPE, stdout=PIPE, stderr=PIPE)
-
-    def create_shell_process(self, command: str) -> None:
-        self.process = Popen(command, stdin=PIPE, stdout=PIPE, stderr=PIPE, shell=True)
-
-    def wait_for_process(self):
-        if self.process is not None:
-            self.process.wait()
-
-    def kill_process(self, signal: Signals):
-        if self.process is not None:
-            kill(self.process.pid, signal)
-            self.wait_for_process()
 
     def start(self) -> None:
-        raise LookupError("\"start\" is not implementented by this object!")
+        self.reset()
 
     def stop(self) -> None:
         self.kill_process(SIGINT)
@@ -80,6 +55,8 @@ class PerformanceProfiler(Profiler):
 
     
     def start(self) -> None:
+        super(PerformanceProfiler, self).start()
+
         profiler_cmd = f"ps -p {self.target_pid} --noheader -o '%cpu %mem'"
         timer_cmd = f"while true; do {profiler_cmd}; sleep 1; done"
         self.create_shell_process(timer_cmd)
@@ -116,6 +93,8 @@ class EnergyProfiler(Profiler):
 
     
     def start(self) -> None:
+        super(EnergyProfiler, self).start()
+
         profiler_cmd = f"powerjoular -l -p {self.target_pid} -f {self.context.run_dir / 'powerjoular.csv'}"
         self.create_process(split(profiler_cmd))
 
@@ -158,11 +137,11 @@ class WasmProfiler(Profiler):
             }
 
     
-    def __init__(self, process: Popen, context: RunnerContext) -> None:
-        super(WasmProfiler, self).__init__(process, context)
+    def __init__(self, target_pid: int, context: RunnerContext) -> None:
+        super(WasmProfiler, self).__init__(target_pid, context)
     
-        self.performance_profiler: PerformanceProfiler = PerformanceProfiler(process, context)
-        self.energy_profiler: EnergyProfiler = EnergyProfiler(process, context)
+        self.performance_profiler: PerformanceProfiler = PerformanceProfiler(target_pid, context)
+        self.energy_profiler: EnergyProfiler = EnergyProfiler(target_pid, context)
 
     @property
     def performance_process(self) -> Popen:
@@ -173,6 +152,8 @@ class WasmProfiler(Profiler):
         return self.energy_profiler.process
 
     def start(self) -> None:
+        super(WasmProfiler, self).start()
+
         self.performance_profiler.start()
         self.energy_profiler.start()
         sleep(1) # TODO: necessary?

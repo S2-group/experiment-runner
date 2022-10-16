@@ -1,5 +1,4 @@
-from typing import Any, List
-from subprocess import Popen, PIPE
+from typing import List
 from os import stat, kill, waitpid
 from signal import SIGINT, SIGTERM, Signals
 from os.path import join
@@ -10,59 +9,20 @@ from ConfigValidator.Config.Models.FactorModel import FactorModel
 from ConfigValidator.Config.Models.RunnerContext import RunnerContext
 
 
-class Runner():
+class Runner(ProcessManager):
 
     class RunnerConfig:
         pass
 
-    def __init__(self) -> None:
-        self.process = None
-
-    @property
-    def stdin(self) -> Any:
-        return self.process.stdin
-
-    @property
-    def stdout(self) -> Any:
-        return self.process.stdout
-
-    @property
-    def stderr(self) -> Any:
-        return self.process.stderr
-
     @property
     def factors(self) -> List[FactorModel]:
         raise LookupError("\"factors\" is not implementented by this object!")
-
-    def create_process(self, command: List[str]) -> None:
-        self.reset()
-        self.process = Popen(command, stdin=PIPE, stdout=PIPE, stderr=PIPE)
-
-    def create_shell_process(self, command: str) -> None:
-        self.reset()
-        self.process = Popen(command, stdin=PIPE, stdout=PIPE, stderr=PIPE, shell=True)
-
-    def wait_for_process(self):
-        if self.process is not None:
-            self.process.wait()
-
-    def kill_process(self, signal: Signals):
-        if self.process is not None:
-            kill(self.process.pid, signal)
-            self.wait_for_process()
-
-    def reset(self) -> None:
-        self.kill_process(SIGTERM)
-        self.process = None
 
     def start(self, context: RunnerContext) -> None:
         self.reset()
 
     def interact(self, context: RunnerContext) -> None:
         raise LookupError("\"interact\" is not implementented by this object!")
-
-    def stop(self) -> None:
-        self.kill_process(SIGTERM)
 
 
 RunnerConfig = Runner.RunnerConfig
@@ -87,7 +47,7 @@ class TimedRunner(Runner):
             time_script = f"/usr/bin/time -f 'User: %U, System: %S'  {command} & echo $(pgrep -P $(echo $!))"
 
         self.create_shell_process(time_script)
-        _ = self.stdout.readline() # skip default message by time
+        _ = self.stdout.readline() # skip default message of time binary
 
         self.subprocess_id = int(self.stdout.readline().strip())
         self.time_output = output_path
