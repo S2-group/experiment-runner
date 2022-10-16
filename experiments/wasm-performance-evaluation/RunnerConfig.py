@@ -37,7 +37,7 @@ class RunnerConfig:
         """Executes immediately after program start, on config load"""
 
         self.runner = None
-        self.target = None
+        self.target_pid = None
         self.time_process = None
         self.profiler = None
         EventSubscriptionController.subscribe_to_multiple_events([
@@ -107,13 +107,13 @@ class RunnerConfig:
         For example, starting the target system to measure.
         Activities after starting the run should also be performed here."""
 
-        self.time_process, self.target = self.runner.start(context)
+        self.time_process, self.target_pid = self.runner.start(context)
         
 
     def start_measurement(self, context: RunnerContext) -> None:
         """Perform any activity required for starting measurements."""
 
-        self.profiler = WasmProfiler(self.target.pid, context)
+        self.profiler = WasmProfiler(self.target_pid, context)
         self.profiler.start()
 
     def interact(self, context: RunnerContext) -> None:

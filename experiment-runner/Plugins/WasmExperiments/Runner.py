@@ -40,7 +40,7 @@ class TimedRunner(Runner):
     def __init__(self) -> None:
         super(TimedRunner, self).__init__()
         
-        self.subprocess: Process = None
+        self.subprocess_id: int = None
         self.time_output: str = None
 
     def create_timed_process(self, command: str, output_path: str = None) -> None:
@@ -53,23 +53,25 @@ class TimedRunner(Runner):
         self.create_shell_process(time_script)
         children = Process(self.process.pid).children(recursive=False)
 
-        self.subprocess = children[0]
+        self.subprocess_id = children[0].pid
         self.time_output = output_path
 
     def wait_for_subprocess(self):
-        if self.subprocess is not None:
-            self.subprocess.wait()
+        self.wait_for_process()
 
     def kill_subprocess(self, signal: Signals):
-        if self.subprocess is not None:
-            self.subprocess.send_signal(signal)
+        if self.subprocess_id is not None:
+            try:
+                kill(self.subprocess_id, signal)
+            except ProcessLookupError as e:
+                logging.warning(f"Could not kill process {self.subprocess_id}: {e}")
             self.wait_for_subprocess()
 
     def reset(self) -> None:
         self.kill_subprocess(SIGTERM)
         super(TimedRunner, self).reset()
 
-        self.subprocess = None
+        self.subprocess_id = None
         self.time_output = None
 
     def stop(self) -> None:
@@ -147,10 +149,7 @@ class WasmRunner(TimedRunner):
 
         self.create_timed_process(command, output_time_path)
 
-        self.subprocess.cpu_times()
-        os.times()
-
-        return self.process, self.subprocess
+        return self.process, self.subprocess_id
 
     def interact(self, context: RunnerContext) -> None:
         # DEBUG INTERACTION
@@ -166,6 +165,7 @@ class WasmRunner(TimedRunner):
 
         with open(self.time_output, "r") as file:
             line = file.readlines()[0].split()
+            print(line)
 
         # calculate execution time in milliseconds
         user_time = int(float(line[1].strip(",")) * 1000)
