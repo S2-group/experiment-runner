@@ -1,7 +1,7 @@
 from subprocess import Popen, PIPE
 from typing import Any, Dict, List
 from os import kill
-from signal import SIGINT
+from signal import SIGINT, Signals
 from shlex import split
 from time import sleep
 from pandas import DataFrame, read_csv
@@ -37,12 +37,23 @@ class Profiler:
     def create_process(self, command: List[str]) -> None:
         self.process = Popen(command, stdin=PIPE, stdout=PIPE, stderr=PIPE)
 
+    def create_shell_process(self, command: str) -> None:
+        self.process = Popen(command, stdin=PIPE, stdout=PIPE, stderr=PIPE, shell=True)
+
+    def wait_for_process(self):
+        if self.process is not None:
+            self.process.wait()
+
+    def kill_process(self, signal: Signals):
+        if self.process is not None:
+            kill(self.process.pid, signal)
+            self.wait_for_process()
+
     def start(self) -> None:
         raise LookupError("\"start\" is not implementented by this object!")
 
     def stop(self) -> None:
-        kill(self.process.pid, SIGINT)
-        self.process.wait()
+        self.kill_process(SIGINT)
 
     def report(self) -> Report:
         raise LookupError("\"report\" is not implementented by this object!")
@@ -71,7 +82,7 @@ class PerformanceProfiler(Profiler):
     def start(self) -> None:
         profiler_cmd = f"ps -p {self.target_pid} --noheader -o '%cpu %mem'"
         timer_cmd = f"while true; do {profiler_cmd}; sleep 1; done"
-        self.create_process(["sh", "-c", timer_cmd])
+        self.create_shell_process(timer_cmd)
 
     def report(self) -> PerformanceReport:
         data_frame = DataFrame(columns=['cpu_usage', 'memory_usage'])
@@ -141,7 +152,7 @@ class WasmProfiler(Profiler):
         def populate(self) -> Dict:
             return {
                 'cpu_usage': round(self.performance_data['cpu_usage'].mean(), 3),
-                'memory_usage': round(self.performance_data['memory_usage'].mean(), 3),  # TODO: still not shown properly
+                'memory_usage': round(self.performance_data['memory_usage'].mean(), 3),  # TODO: verify on Raspberry
                 'energy_usage': round(self.energy_data['CPU Power'].sum(), 3),
                 'execution_time': 'TODO',
             }
@@ -164,14 +175,19 @@ class WasmProfiler(Profiler):
     def start(self) -> None:
         self.performance_profiler.start()
         self.energy_profiler.start()
-        sleep(1)
+        sleep(1) # TODO: necessary?
 
     def stop(self) -> None:
-        # making sure they get terminated as quickly as possible without delay
-        kill(self.performance_process.pid, SIGINT)
-        kill(self.energy_process.pid, SIGINT)
-        self.performance_process.wait()
-        self.energy_process.wait()
+        # making sure they get terminated as quickly as possible without waiting for termination of previous process
+
+        if self.performance_process is not None:
+            kill(self.performance_process.pid, SIGINT)
+
+        if self.energy_process is not None:
+            kill(self.energy_process.pid, SIGINT)
+
+        self.performance_profiler.wait_for_process()
+        self.energy_profiler.wait_for_process()
 
     def report(self) -> WasmReport:
         performance_report = self.performance_profiler.report()

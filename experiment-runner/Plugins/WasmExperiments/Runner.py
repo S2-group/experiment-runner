@@ -1,17 +1,16 @@
-import string
 from typing import Any, List
 from subprocess import Popen, PIPE
 from os import stat, kill, waitpid
 from signal import SIGINT, SIGTERM, Signals
 from os.path import join
-from shlex import split
 from time import sleep
 
+from Plugins.WasmExperiments.ProcessManager import ProcessManager
 from ConfigValidator.Config.Models.FactorModel import FactorModel
 from ConfigValidator.Config.Models.RunnerContext import RunnerContext
 
 
-class Runner:
+class Runner():
 
     class RunnerConfig:
         pass
@@ -39,7 +38,7 @@ class Runner:
         self.reset()
         self.process = Popen(command, stdin=PIPE, stdout=PIPE, stderr=PIPE)
 
-    def create_shell_process(self, command: string) -> None:
+    def create_shell_process(self, command: str) -> None:
         self.reset()
         self.process = Popen(command, stdin=PIPE, stdout=PIPE, stderr=PIPE, shell=True)
 
@@ -80,15 +79,14 @@ class TimedRunner(Runner):
         self.subprocess_id = None
         self.time_output = None
 
-    def create_timed_process(self, command: string, output_path: string = None) -> None:
+    def create_timed_process(self, command: str, output_path: str = None) -> None:
 
         if output_path is not None:
-            time_script = f"/usr/bin/time -o {output_path} {command} & echo $(pgrep -P $(echo $!))"
+            time_script = f"/usr/bin/time -f 'User: %U, System: %S' -o {output_path} {command} & echo $(pgrep -P $(echo $!))"
         else:
-            time_script = f"/usr/bin/time {command} & echo $(pgrep -P $(echo $!))"
+            time_script = f"/usr/bin/time -f 'User: %U, System: %S'  {command} & echo $(pgrep -P $(echo $!))"
 
         self.create_shell_process(time_script)
-        sleep(1) # TODO: Figure our good timing to avoid premature reading
         _ = self.stdout.readline() # skip default message by time
 
         self.subprocess_id = int(self.stdout.readline().strip())
@@ -141,7 +139,7 @@ class WasmRunner(TimedRunner):
         RUNTIMES = RUNTIME_PATHS.keys()
 
         @classmethod
-        def parameters(self, algorithm: string, language: string) -> string:
+        def parameters(self, algorithm: str, language: str) -> str:
             # TODO: Implementation of executable-specific parameters
             return ""
 
@@ -171,24 +169,24 @@ class WasmRunner(TimedRunner):
         parameters = WasmRunnerCofig.parameters(algorithm, language)
         command = f"{runtime} {executable} {parameters}"
         
-        # CURRENTLY DISABLED AS I DON'T HAVE ALL EXECUTABLES YET
         # Not beautiful, but gets the job done...
         # There is no obvious way for this object to know that it is supposed to set the file size.
         # But as it is the only object ever touching the actual binary, this is the easiest thing to do
-        #
-        # executable_size = stat(executable).st_size
-        # context.run_variation["storage"] = executable_size
+        if not WasmRunnerCofig.DEBUG:
+            executable_size = stat(executable).st_size
+            context.run_variation["storage"] = executable_size
 
+        # DEBUG COMMAND
         if WasmRunnerCofig.DEBUG:
-            # DEBUG COMMAND
             print(f"Command: {command}")
             command = "stress --cpu 1"
 
         self.create_timed_process(command, output_path)
 
+        # DEBUG COMMAND
         if WasmRunnerCofig.DEBUG:
-            # DEBUG COMMAND
-            self.subprocess_id += 1 # because stress is annoying
+            # because stress creates another subprocess, which *MOSTLY* has pid + 1
+            self.subprocess_id += 1
             print(self.subprocess_id)
 
         return self.process, self.subprocess_id
@@ -202,9 +200,17 @@ class WasmRunner(TimedRunner):
         self.wait_for_subprocess()
         self.wait_for_process()
 
-    def report_time(self) -> float:
-        # TODO: Implementation parsing from self.time_output
-        return 0.0
+    def report_time(self) -> int:
+
+        with open(self.time_output, "r") as file:
+            line = file.readlines()[1].split()
+
+        # calculate execution time in milliseconds
+        user_time = int(float(line[1].strip(",")) * 1000)
+        system_time = int(float(line[3].strip(",")) * 1000)
+        execution_time = user_time + system_time
+
+        return execution_time
     
 
 WasmRunnerCofig = WasmRunner.WasmRunnerCofig
