@@ -1,6 +1,6 @@
 from typing import List
 from os import stat, kill, waitpid
-from signal import SIGINT, SIGTERM, Signals
+from signal import SIGTERM, Signals
 from os.path import join
 from time import sleep
 
@@ -138,7 +138,7 @@ class WasmRunner(TimedRunner):
 
         # DEBUG COMMAND
         if WasmRunnerCofig.DEBUG:
-            print(f"Command: {command}")
+            print(f"Original Command: {command}\nContinuing with 'stress'...")
             command = "stress --cpu 1"
 
         self.create_timed_process(command, output_path)
@@ -147,7 +147,7 @@ class WasmRunner(TimedRunner):
         if WasmRunnerCofig.DEBUG:
             # because stress creates another subprocess, which *MOSTLY* has pid + 1
             self.subprocess_id += 1
-            print(self.subprocess_id)
+            print(f"'stress' Subprocess PID: {self.subprocess_id}")
 
         return self.process, self.subprocess_id
 

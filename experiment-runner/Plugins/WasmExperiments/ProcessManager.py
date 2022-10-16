@@ -1,6 +1,6 @@
 from subprocess import Popen, PIPE
 from typing import List, Any
-from signal import Signals, SIGTERM, SIGINT
+from signal import Signals, SIGTERM
 from os import kill
 
 class ProcessManager:
