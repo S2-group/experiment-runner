@@ -155,7 +155,7 @@ class WasmProfiler(Profiler):
     def start(self) -> None:
         super(WasmProfiler, self).start()
 
-        sleep(1)  # wait for process to run for a bit :-)
+        #sleep(1)  # wait for process to run for a bit :-)
         self.performance_profiler.start()
         self.energy_profiler.start()
 

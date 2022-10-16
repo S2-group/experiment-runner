@@ -113,7 +113,7 @@ class RunnerConfig:
     def start_measurement(self, context: RunnerContext) -> None:
         """Perform any activity required for starting measurements."""
 
-        self.profiler = WasmProfiler(self.target, context)
+        self.profiler = WasmProfiler(self.target.pid, context)
         self.profiler.start()
 
     def interact(self, context: RunnerContext) -> None:

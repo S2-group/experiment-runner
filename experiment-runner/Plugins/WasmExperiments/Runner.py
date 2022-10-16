@@ -1,10 +1,12 @@
 import logging
+import os
 from subprocess import Popen
 from typing import List
 from os import stat, kill, waitpid
 from signal import SIGTERM, Signals
 from os.path import join
 from time import sleep
+from psutil import Process
 
 from Plugins.WasmExperiments.ProcessManager import ProcessManager
 from ConfigValidator.Config.Models.FactorModel import FactorModel
@@ -38,40 +40,36 @@ class TimedRunner(Runner):
     def __init__(self) -> None:
         super(TimedRunner, self).__init__()
         
-        self.subprocess_id = None
-        self.time_output = None
+        self.subprocess: Process = None
+        self.time_output: str = None
 
     def create_timed_process(self, command: str, output_path: str = None) -> None:
 
         if output_path is not None:
-            time_script = f"/usr/bin/time -f 'User: %U, System: %S' -o {output_path} {command} & echo $(pgrep -P $(echo $!))"
+            time_script = f"/usr/bin/time -f 'User: %U, System: %S' -o {output_path} {command}"
         else:
-            time_script = f"/usr/bin/time -f 'User: %U, System: %S' {command} & echo $(pgrep -P $(echo $!))"
+            time_script = f"/usr/bin/time -f 'User: %U, System: %S' {command}"
 
         self.create_shell_process(time_script)
-        _ = self.stdout.readline() # skip default message of time binary
+        children = Process(self.process.pid).children(recursive=False)
 
-        self.subprocess_id = int(self.stdout.readline().strip())
+        self.subprocess = children[0]
         self.time_output = output_path
 
     def wait_for_subprocess(self):
-        if self.subprocess_id is not None:
-            try:
-                waitpid(self.subprocess_id, 0)
-            except:
-                logging.warning(f"Can't wait for subprocess {self.subprocess_id}")
-                return
+        if self.subprocess is not None:
+            self.subprocess.wait()
 
     def kill_subprocess(self, signal: Signals):
-        if self.subprocess_id is not None:
-            kill(self.subprocess_id, signal)
+        if self.subprocess is not None:
+            self.subprocess.send_signal(signal)
             self.wait_for_subprocess()
 
     def reset(self) -> None:
         self.kill_subprocess(SIGTERM)
         super(TimedRunner, self).reset()
 
-        self.subprocess_id = None
+        self.subprocess = None
         self.time_output = None
 
     def stop(self) -> None:
@@ -89,21 +87,29 @@ class WasmRunner(TimedRunner):
 
     class WasmRunnerConfig(TimedRunnerConfig):
         # Optional
-        DEBUG = True
+        DEBUG = False
         WASMER_PATH = "/home/pi/.wasmer/bin/wasmer"
         WASM_EDGE_PATH = "/usr/local/bin/wasmedge"
 
         # Obligatory
         PROBLEM_DIR = "/tmp/pycharm_project_960/experiments/binaries"
-        ALGORITHMS = ["binarytrees", "nbody", "spectral-norm"]
-        LANGUAGES = ["c", "rust", "javascript", "go"]
+        #ALGORITHMS = ["binarytrees", "nbody", "spectral-norm"]
+        ALGORITHMS = ["binarytrees"]
+        #LANGUAGES = ["c", "rust", "javascript", "go"]
+        LANGUAGES = ["go"]
 
-        RUNTIME_PATHS = { "wasmer": WASMER_PATH, "wasmEdge": WASM_EDGE_PATH }
+        #RUNTIME_PATHS = { "wasmer": WASMER_PATH, "wasmEdge": WASM_EDGE_PATH }
+        RUNTIME_PATHS = { "wasmer": WASMER_PATH }
         RUNTIMES = list(RUNTIME_PATHS.keys())
 
         @classmethod
         def parameters(cls, algorithm: str, language: str) -> str:
-            # TODO: Implementation of executable-specific parameters
+            if algorithm == "binarytrees":
+                return "18"
+            # if language == "javascript":
+            #     if algorithm == "nbody":
+            #         return '{"n": 1}'
+            #     return "{}"
             return ""
 
     
@@ -139,24 +145,17 @@ class WasmRunner(TimedRunner):
             executable_size = stat(executable).st_size
             context.run_variation["storage"] = executable_size
 
-        # DEBUG COMMAND
-        if WasmRunnerConfig.DEBUG:
-            print(f"Original Command: {command}\nContinuing with 'stress'...")
-            command = "stress --cpu 1"
-
         self.create_timed_process(command, output_time_path)
 
-        # DEBUG COMMAND
-        if WasmRunnerConfig.DEBUG:
-            # because stress creates another subprocess, which *MOSTLY* has pid + 1
-            self.subprocess_id += 1
-            print(f"'stress' Subprocess PID: {self.subprocess_id}")
+        self.subprocess.cpu_times()
+        os.times()
 
-        return self.process, self.subprocess_id
+        return self.process, self.subprocess
 
     def interact(self, context: RunnerContext) -> None:
         # DEBUG INTERACTION
         if WasmRunnerConfig.DEBUG:
+            logging.warning("Debug sleep 3 seconds interact")
             sleep(3)
             return
 
@@ -166,7 +165,7 @@ class WasmRunner(TimedRunner):
     def report_time(self) -> int:
 
         with open(self.time_output, "r") as file:
-            line = file.readlines()[1].split()
+            line = file.readlines()[0].split()
 
         # calculate execution time in milliseconds
         user_time = int(float(line[1].strip(",")) * 1000)

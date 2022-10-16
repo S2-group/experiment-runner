@@ -1,4 +1,6 @@
+import logging
 from subprocess import Popen, PIPE
+from time import sleep
 from typing import List, Any
 from signal import Signals, SIGTERM
 from os import kill
@@ -34,7 +36,10 @@ class ProcessManager:
 
     def kill_process(self, signal: Signals):
         if self.process is not None:
-            kill(self.process.pid, signal)
+            try:
+                kill(self.process.pid, signal)
+            except ProcessLookupError as e:
+                logging.warning(f"Could not kill process {self.process.pid}: {e}")
             self.wait_for_process()
 
     def reset(self) -> None:
