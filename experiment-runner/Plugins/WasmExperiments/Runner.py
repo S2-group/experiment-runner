@@ -1,3 +1,5 @@
+import logging
+from subprocess import Popen
 from typing import List
 from os import stat, kill, waitpid
 from signal import SIGTERM, Signals
@@ -16,13 +18,13 @@ class Runner(ProcessManager):
 
     @property
     def factors(self) -> List[FactorModel]:
-        raise LookupError("\"factors\" is not implementented by this object!")
+        raise LookupError("\"factors\" is not implemented by this object!")
 
     def start(self, context: RunnerContext) -> None:
         self.reset()
 
     def interact(self, context: RunnerContext) -> None:
-        raise LookupError("\"interact\" is not implementented by this object!")
+        raise LookupError("\"interact\" is not implemented by this object!")
 
 
 RunnerConfig = Runner.RunnerConfig
@@ -44,7 +46,7 @@ class TimedRunner(Runner):
         if output_path is not None:
             time_script = f"/usr/bin/time -f 'User: %U, System: %S' -o {output_path} {command} & echo $(pgrep -P $(echo $!))"
         else:
-            time_script = f"/usr/bin/time -f 'User: %U, System: %S'  {command} & echo $(pgrep -P $(echo $!))"
+            time_script = f"/usr/bin/time -f 'User: %U, System: %S' {command} & echo $(pgrep -P $(echo $!))"
 
         self.create_shell_process(time_script)
         _ = self.stdout.readline() # skip default message of time binary
@@ -57,6 +59,7 @@ class TimedRunner(Runner):
             try:
                 waitpid(self.subprocess_id, 0)
             except:
+                logging.warning(f"Can't wait for subprocess {self.subprocess_id}")
                 return
 
     def kill_subprocess(self, signal: Signals):
@@ -76,7 +79,7 @@ class TimedRunner(Runner):
         super(TimedRunner, self).stop()
 
     def report_time(self) -> float:
-        raise LookupError("\"report\" is not implementented by this object!")
+        raise LookupError("\"report\" is not implemented by this object!")
 
 
 TimedRunnerConfig = TimedRunner.TimedRunnerConfig
@@ -84,22 +87,22 @@ TimedRunnerConfig = TimedRunner.TimedRunnerConfig
 
 class WasmRunner(TimedRunner):
 
-    class WasmRunnerCofig(TimedRunnerConfig):
+    class WasmRunnerConfig(TimedRunnerConfig):
         # Optional
         DEBUG = True
-        WASMER_PATH = "/path/to/wasmer"
-        WASM_EDGE_PATH = "/path/to/wasm_edge"
+        WASMER_PATH = "/home/pi/.wasmer/bin/wasmer"
+        WASM_EDGE_PATH = "/usr/local/bin/wasmedge"
 
         # Obligatory
-        PROBLEM_DIR = "/path/to/problems/"
-        ALGORITHMS = ["fannkuch_redux", "n_body", "mandelbrot", "k_nucleotide"]
-        LANGUAGES = ["c", "rust", "javaScript", "go"]
+        PROBLEM_DIR = "/tmp/pycharm_project_960/experiments/binaries"
+        ALGORITHMS = ["binarytrees", "nbody", "spectral-norm"]
+        LANGUAGES = ["c", "rust", "javascript", "go"]
 
         RUNTIME_PATHS = { "wasmer": WASMER_PATH, "wasmEdge": WASM_EDGE_PATH }
-        RUNTIMES = RUNTIME_PATHS.keys()
+        RUNTIMES = list(RUNTIME_PATHS.keys())
 
         @classmethod
-        def parameters(self, algorithm: str, language: str) -> str:
+        def parameters(cls, algorithm: str, language: str) -> str:
             # TODO: Implementation of executable-specific parameters
             return ""
 
@@ -107,44 +110,44 @@ class WasmRunner(TimedRunner):
     def __init__(self) -> None:
         super(WasmRunner, self).__init__()
 
-        self.algorithms = FactorModel("algorithm", WasmRunnerCofig.ALGORITHMS)
-        self.languages = FactorModel("language", WasmRunnerCofig.LANGUAGES)
-        self.runtimes = FactorModel("runtime", WasmRunnerCofig.RUNTIMES)
+        self.algorithms = FactorModel("algorithm", WasmRunnerConfig.ALGORITHMS)
+        self.languages = FactorModel("language", WasmRunnerConfig.LANGUAGES)
+        self.runtimes = FactorModel("runtime", WasmRunnerConfig.RUNTIMES)
 
     @property
     def factors(self) -> List[FactorModel]:
         return [self.algorithms, self.languages, self.runtimes]
 
-    def start(self, context: RunnerContext) -> None:
+    def start(self, context: RunnerContext) -> tuple[Popen, int]:
         super(WasmRunner, self).start(context)
 
-        output_path = join(context.run_dir, "runtime.csv")
+        output_time_path = join(context.run_dir, "runtime.csv")
         run_variation = context.run_variation
 
         algorithm = run_variation[self.algorithms.factor_name]
         language  = run_variation[self.languages.factor_name]
-        runtime   = WasmRunnerCofig.RUNTIME_PATHS[run_variation[self.runtimes.factor_name]]
+        runtime   = WasmRunnerConfig.RUNTIME_PATHS[run_variation[self.runtimes.factor_name]]
 
-        executable = join(WasmRunnerCofig.PROBLEM_DIR, f"{algorithm}.{language}.wasm")
-        parameters = WasmRunnerCofig.parameters(algorithm, language)
+        executable = join(WasmRunnerConfig.PROBLEM_DIR, f"{algorithm}.{language}.wasm")
+        parameters = WasmRunnerConfig.parameters(algorithm, language)
         command = f"{runtime} {executable} {parameters}"
         
         # Not beautiful, but gets the job done...
         # There is no obvious way for this object to know that it is supposed to set the file size.
         # But as it is the only object ever touching the actual binary, this is the easiest thing to do
-        if not WasmRunnerCofig.DEBUG:
+        if not WasmRunnerConfig.DEBUG:
             executable_size = stat(executable).st_size
             context.run_variation["storage"] = executable_size
 
         # DEBUG COMMAND
-        if WasmRunnerCofig.DEBUG:
+        if WasmRunnerConfig.DEBUG:
             print(f"Original Command: {command}\nContinuing with 'stress'...")
             command = "stress --cpu 1"
 
-        self.create_timed_process(command, output_path)
+        self.create_timed_process(command, output_time_path)
 
         # DEBUG COMMAND
-        if WasmRunnerCofig.DEBUG:
+        if WasmRunnerConfig.DEBUG:
             # because stress creates another subprocess, which *MOSTLY* has pid + 1
             self.subprocess_id += 1
             print(f"'stress' Subprocess PID: {self.subprocess_id}")
@@ -153,7 +156,7 @@ class WasmRunner(TimedRunner):
 
     def interact(self, context: RunnerContext) -> None:
         # DEBUG INTERACTION
-        if WasmRunnerCofig.DEBUG:
+        if WasmRunnerConfig.DEBUG:
             sleep(3)
             return
 
@@ -173,4 +176,4 @@ class WasmRunner(TimedRunner):
         return execution_time
     
 
-WasmRunnerCofig = WasmRunner.WasmRunnerCofig
+WasmRunnerConfig = WasmRunner.WasmRunnerConfig

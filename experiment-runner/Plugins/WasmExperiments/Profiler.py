@@ -1,3 +1,4 @@
+from os.path import join
 from subprocess import Popen
 from typing import Dict
 from os import kill
@@ -14,8 +15,8 @@ class Profiler(ProcessManager):
 
     class Report:
 
-        def populate() -> Dict:
-            raise LookupError("\"populate\" is not implementented by this object!")
+        def populate(self) -> Dict:
+            raise LookupError("\"populate\" is not implemented by this object!")
 
 
     def __init__(self, target_pid: int, context: RunnerContext) -> None:
@@ -31,7 +32,7 @@ class Profiler(ProcessManager):
         self.kill_process(SIGINT)
 
     def report(self) -> Report:
-        raise LookupError("\"report\" is not implementented by this object!")
+        raise LookupError("\"report\" is not implemented by this object!")
 
 
 Report = Profiler.Report
@@ -95,12 +96,12 @@ class EnergyProfiler(Profiler):
     def start(self) -> None:
         super(EnergyProfiler, self).start()
 
-        profiler_cmd = f"powerjoular -l -p {self.target_pid} -f {self.context.run_dir / 'powerjoular.csv'}"
+        profiler_cmd = f"powerjoular -l -p {self.target_pid} -f {join(self.context.run_dir, 'powerjoular.csv')}"
         self.create_process(split(profiler_cmd))
 
     def report(self) -> EnergyReport:
-        data_frame = read_csv(self.context.run_dir / f"powerjoular.csv-{self.target_pid}.csv")
-        data_frame.to_csv(self.context.run_dir / 'raw_data.csv', index=False)
+        data_frame = read_csv(join(self.context.run_dir, f"powerjoular.csv-{self.target_pid}.csv"))
+        data_frame.to_csv(join(self.context.run_dir, 'raw_data.csv'), index=False)
         return EnergyReport(data_frame)
 
 
@@ -154,9 +155,9 @@ class WasmProfiler(Profiler):
     def start(self) -> None:
         super(WasmProfiler, self).start()
 
+        sleep(1)  # wait for process to run for a bit :-)
         self.performance_profiler.start()
         self.energy_profiler.start()
-        sleep(1) # TODO: necessary?
 
     def stop(self) -> None:
         # making sure they get terminated as quickly as possible without waiting for termination of previous process

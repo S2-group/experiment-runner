@@ -1,24 +1,16 @@
-from EventManager.Models.RunnerEvents import RunnerEvents
-from EventManager.EventSubscriptionController import EventSubscriptionController
-from ConfigValidator.Config.Models.RunTableModel import RunTableModel
-from ConfigValidator.Config.Models.FactorModel import FactorModel
-from ConfigValidator.Config.Models.RunnerContext import RunnerContext
-from ConfigValidator.Config.Models.OperationType import OperationType
-from ProgressManager.Output.OutputProcedure import OutputProcedure as output
-
-from Plugins.WasmExperiments.Runner import WasmRunner
-from Plugins.WasmExperiments.Profiler import WasmProfiler, WasmReport
-
-from typing import Dict, List, Any, Optional
-from pathlib import Path
 from os.path import dirname, realpath
+from pathlib import Path
+from typing import Dict, Any, Optional
 
-import os
-import signal
-import pandas as pd
-import time
-import subprocess
-import shlex
+from ConfigValidator.Config.Models.OperationType import OperationType
+from ConfigValidator.Config.Models.RunTableModel import RunTableModel
+from ConfigValidator.Config.Models.RunnerContext import RunnerContext
+from EventManager.EventSubscriptionController import EventSubscriptionController
+from EventManager.Models.RunnerEvents import RunnerEvents
+from Plugins.WasmExperiments.Profiler import WasmProfiler, WasmReport
+from Plugins.WasmExperiments.Runner import WasmRunner
+from ProgressManager.Output.OutputProcedure import OutputProcedure
+
 
 class RunnerConfig:
     ROOT_DIR = Path(dirname(realpath(__file__)))
@@ -44,6 +36,10 @@ class RunnerConfig:
     def __init__(self):
         """Executes immediately after program start, on config load"""
 
+        self.runner = None
+        self.target = None
+        self.time_process = None
+        self.profiler = None
         EventSubscriptionController.subscribe_to_multiple_events([
             (RunnerEvents.BEFORE_EXPERIMENT, self.before_experiment),
             (RunnerEvents.BEFORE_RUN       , self.before_run       ),
@@ -56,7 +52,7 @@ class RunnerConfig:
             (RunnerEvents.AFTER_EXPERIMENT , self.after_experiment )
         ])
         self.run_table_model = None  # Initialized later
-        output.console_log("Custom config loaded")
+        OutputProcedure.console_log("Custom config loaded")
 
     """
     Idea: we will have all precompiled algorithms in the data folder
@@ -111,13 +107,13 @@ class RunnerConfig:
         For example, starting the target system to measure.
         Activities after starting the run should also be performed here."""
 
-        self.target, self.target_pid = self.runner.start(context)
+        self.time_process, self.target = self.runner.start(context)
         
 
     def start_measurement(self, context: RunnerContext) -> None:
         """Perform any activity required for starting measurements."""
 
-        self.profiler = WasmProfiler(self.target_pid, context)
+        self.profiler = WasmProfiler(self.target, context)
         self.profiler.start()
 
     def interact(self, context: RunnerContext) -> None:
