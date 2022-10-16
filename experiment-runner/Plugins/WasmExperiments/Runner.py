@@ -195,10 +195,12 @@ class WasmRunner(TimedRunner):
 
     def interact(self, context: RunnerContext) -> None:
         # DEBUG INTERACTION
-        sleep(3)
-        return
+        if WasmRunnerCofig.DEBUG:
+            sleep(3)
+            return
 
         self.wait_for_subprocess()
+        self.wait_for_process()
 
     def report_time(self) -> float:
         # TODO: Implementation parsing from self.time_output
