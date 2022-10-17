@@ -1,10 +1,7 @@
 from os.path import join
-from subprocess import Popen
 from typing import Dict
-from os import kill
 from signal import SIGINT
 from shlex import split
-from time import sleep
 from pandas import DataFrame, read_csv
 
 from Plugins.WasmExperiments.ProcessManager import ProcessManager
@@ -18,10 +15,8 @@ class Profiler(ProcessManager):
         def populate(self) -> Dict:
             raise LookupError("\"populate\" is not implemented by this object!")
 
-
     def __init__(self, target_pid: int, context: RunnerContext) -> None:
         super(Profiler, self).__init__()
-
         self.target_pid: int = target_pid
         self.context: RunnerContext = context
 
@@ -29,7 +24,7 @@ class Profiler(ProcessManager):
         self.reset()
 
     def stop(self) -> None:
-        self.kill_process(SIGINT)
+        self.kill(SIGINT)
 
     def report(self) -> Report:
         raise LookupError("\"report\" is not implemented by this object!")
@@ -40,7 +35,6 @@ Report = Profiler.Report
 
 class PerformanceProfiler(Profiler):
 
-    
     class PerformanceReport(Report):
 
         def __init__(self, data_frame: DataFrame) -> None:
@@ -54,13 +48,11 @@ class PerformanceProfiler(Profiler):
                 'execution_time': 'TODO',
             }
 
-    
     def start(self) -> None:
         super(PerformanceProfiler, self).start()
-
         profiler_cmd = f"ps -p {self.target_pid} --noheader -o '%cpu %mem'"
         timer_cmd = f"while true; do {profiler_cmd}; sleep 1; done"
-        self.create_shell_process(timer_cmd)
+        self.shell_execute(timer_cmd)
 
     def report(self) -> PerformanceReport:
         data_frame = DataFrame(columns=['cpu_usage', 'memory_usage'])
@@ -80,7 +72,6 @@ PerformanceReport = PerformanceProfiler.PerformanceReport
 
 class EnergyProfiler(Profiler):
 
-    
     class EnergyReport(Report):
         
         def __init__(self, data_frame: DataFrame) -> None:
@@ -92,12 +83,10 @@ class EnergyProfiler(Profiler):
                 'energy_usage': round(self.data_frame['CPU Power'].sum(), 3)
             }
 
-    
     def start(self) -> None:
         super(EnergyProfiler, self).start()
-
         profiler_cmd = f"powerjoular -l -p {self.target_pid} -f {join(self.context.run_dir, 'powerjoular.csv')}"
-        self.create_process(split(profiler_cmd))
+        self.execute(split(profiler_cmd))
 
     def report(self) -> EnergyReport:
         data_frame = read_csv(join(self.context.run_dir, f"powerjoular.csv-{self.target_pid}.csv"))
@@ -109,7 +98,6 @@ EnergyReport = EnergyProfiler.EnergyReport
 
 
 class WasmProfiler(Profiler):
-
 
     class WasmReport(Report):
 
@@ -136,45 +124,28 @@ class WasmProfiler(Profiler):
                 'energy_usage': round(self.energy_data['CPU Power'].sum(), 3),
                 'execution_time': 'TODO',
             }
-
     
     def __init__(self, target_pid: int, context: RunnerContext) -> None:
         super(WasmProfiler, self).__init__(target_pid, context)
-    
         self.performance_profiler: PerformanceProfiler = PerformanceProfiler(target_pid, context)
         self.energy_profiler: EnergyProfiler = EnergyProfiler(target_pid, context)
 
-    @property
-    def performance_process(self) -> Popen:
-        return self.performance_profiler.process
-
-    @property
-    def energy_process(self) -> Popen:
-        return self.energy_profiler.process
-
     def start(self) -> None:
         super(WasmProfiler, self).start()
-
-        #sleep(1)  # wait for process to run for a bit :-)
+        # sleep(1)  # wait for process to run for a bit :-)
         self.performance_profiler.start()
         self.energy_profiler.start()
 
     def stop(self) -> None:
         # making sure they get terminated as quickly as possible without waiting for termination of previous process
-
-        if self.performance_process is not None:
-            kill(self.performance_process.pid, SIGINT)
-
-        if self.energy_process is not None:
-            kill(self.energy_process.pid, SIGINT)
-
-        self.performance_profiler.wait_for_process()
-        self.energy_profiler.wait_for_process()
+        self.performance_profiler.send_signal(SIGINT)
+        self.energy_profiler.send_signal(SIGINT)
+        self.performance_profiler.wait()
+        self.energy_profiler.wait()
 
     def report(self) -> WasmReport:
         performance_report = self.performance_profiler.report()
         energy_report      = self.energy_profiler.report()
-
         return WasmReport(performance_report, energy_report)
 
 

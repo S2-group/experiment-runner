@@ -37,9 +37,11 @@ class RunnerConfig:
         """Executes immediately after program start, on config load"""
 
         self.runner = None
+        self.profiler = None
+
         self.target_pid = None
         self.time_process = None
-        self.profiler = None
+
         EventSubscriptionController.subscribe_to_multiple_events([
             (RunnerEvents.BEFORE_EXPERIMENT, self.before_experiment),
             (RunnerEvents.BEFORE_RUN       , self.before_run       ),
@@ -51,31 +53,9 @@ class RunnerConfig:
             (RunnerEvents.POPULATE_RUN_DATA, self.populate_run_data),
             (RunnerEvents.AFTER_EXPERIMENT , self.after_experiment )
         ])
+
         self.run_table_model = None  # Initialized later
         OutputProcedure.console_log("Custom config loaded")
-
-    """
-    Idea: we will have all precompiled algorithms in the data folder
-    - structure given by filename: ALG_NAME.
-    
-    We have:
-    - runtime
-        - wasmer
-        - wasmEdge
-    
-    - four benchmarks
-        - fannkuch-redux
-        - n-body
-        - mandelbrot
-        - k-nucleotide
-        
-    - four languages
-        - Rust
-        - C
-        - JS
-        - Go
-    """
-
 
     def create_run_table_model(self) -> RunTableModel:
         """Create and return the run_table model here. A run_table is a List (rows) of tuples (columns),
@@ -84,7 +64,7 @@ class RunnerConfig:
         self.runner = WasmRunner()
 
         self.run_table_model = RunTableModel(
-            factors= self.runner.factors,
+            factors=self.runner.factors,
             data_columns=WasmReport.DATA_COLUMNS
         )
 
@@ -108,7 +88,6 @@ class RunnerConfig:
         Activities after starting the run should also be performed here."""
 
         self.time_process, self.target_pid = self.runner.start(context)
-        
 
     def start_measurement(self, context: RunnerContext) -> None:
         """Perform any activity required for starting measurements."""
@@ -119,8 +98,6 @@ class RunnerConfig:
     def interact(self, context: RunnerContext) -> None:
         """Perform any interaction with the running target system here, or block here until the target finishes."""
 
-        # TODO: wait until it is finished
-        # self.target.wait()
         self.runner.interact(context)
 
     def stop_measurement(self, context: RunnerContext) -> None:
@@ -139,16 +116,6 @@ class RunnerConfig:
         You can also store the raw measurement data under `context.run_dir`
         Returns a dictionary with keys `self.run_table_model.data_columns` and their values populated"""
 
-        # TODO: parse PowerJoular data
-        #with open(f"{context.run_dir}/runtime.csv") as time_file:
-        #    reader = csv.reader(time_file, delimiter=',')
-        #    exec_time = float(next(reader)[1].strip())
-
-        # TODO: parse PS data
-
-        # powerjoular.csv - Power consumption of the whole system
-        # powerjoular.csv-PID.csv - Power consumption of that specific process
-
         report = self.profiler.report()
         run_data = report.populate()
 
@@ -159,6 +126,7 @@ class RunnerConfig:
     def after_experiment(self) -> None:
         """Perform any activity required after stopping the experiment here
         Invoked only once during the lifetime of the program."""
+
         pass
 
     # ================================ DO NOT ALTER BELOW THIS LINE ================================
