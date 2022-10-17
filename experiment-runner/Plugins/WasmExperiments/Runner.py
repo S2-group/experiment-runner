@@ -1,7 +1,8 @@
 import logging
+import stat as lib_stat
 from subprocess import Popen
-from typing import List
-from os import stat, kill
+from typing import List, Type
+from os import stat, kill, getcwd, chmod, remove
 from signal import Signals
 from os.path import join
 from psutil import Process
@@ -12,9 +13,12 @@ from ConfigValidator.Config.Models.RunnerContext import RunnerContext
 
 
 class Runner(ProcessManager):
-
     class RunnerConfig:
         pass
+
+    def __init__(self, config: Type[RunnerConfig] = RunnerConfig):
+        self.config: Type[RunnerConfig] = config
+        super(Runner, self).__init__()
 
     @property
     def factors(self) -> List[FactorModel]:
@@ -31,12 +35,12 @@ RunnerConfig = Runner.RunnerConfig
 
 
 class TimedRunner(Runner):
-
     class TimedRunnerConfig(RunnerConfig):
-        pass
+        SCRIPT_PATH = join(getcwd(), "experiments/binaries/script.sh")
 
-    def __init__(self) -> None:
+    def __init__(self, config: Type[TimedRunnerConfig] = TimedRunnerConfig) -> None:
         super(TimedRunner, self).__init__()
+        self.config: Type[TimedRunnerConfig] = config
         self.subprocess_id: int = None
         self.time_output: str = None
 
@@ -46,15 +50,23 @@ class TimedRunner(Runner):
 
     def create_timed_process(self, command: str, output_path: str = None) -> None:
 
+        script_path = self.config.SCRIPT_PATH
+        with open(script_path, "w") as file:
+            file.write(command)
+        chmod(script_path, lib_stat.S_IRWXU | lib_stat.S_IRWXG | lib_stat.S_IRWXO)
+
         if output_path is not None:
-            time_script = f"/usr/bin/time -f 'User: %U, System: %S' -o {output_path} {command}"
+            time_script = f"/usr/bin/time -f 'User: %U, System: %S' -o {output_path} {script_path}"
         else:
-            time_script = f"/usr/bin/time -f 'User: %U, System: %S' {command}"
+            time_script = f"/usr/bin/time -f 'User: %U, System: %S' {script_path}"
 
         self.shell_execute(time_script)
-        children = Process(self.process.pid).children(recursive=True)
 
-        self.subprocess_id = children[1].pid  # TODO: Figure our how to deal with multi-process environments
+        shell_process = Process(self.process.pid)
+        script_process = shell_process.children(recursive=True)[1]
+        command_process = script_process.children(recursive=True)[0]
+
+        self.subprocess_id = command_process.pid  # TODO: Figure our how to deal with multi-process environments
         self.time_output = output_path
 
     def send_signal(self, signal: Signals) -> None:
@@ -85,34 +97,41 @@ class WasmRunner(TimedRunner):
         # Optional
         DEBUG = False
         WASMER_PATH = "/home/pi/.wasmer/bin/wasmer"
-        WASM_EDGE_PATH = "/usr/local/bin/wasmedge"
+        WASM_TIME = "/home/pi/.wasmtime/bin/wasmtime"
 
         # Obligatory
-        PROBLEM_DIR = "/tmp/pycharm_project_960/experiments/binaries"
-        # ALGORITHMS = ["binarytrees", "nbody", "spectral-norm"]
-        ALGORITHMS = ["binarytrees"]
-        # LANGUAGES = ["c", "rust", "javascript", "go"]
-        LANGUAGES = ["rust", "go"]
+        PROBLEM_DIR = join(getcwd(), "experiments/binaries")
+        ALGORITHMS = ["binarytrees", "spectral-norm", "nbody"]
+        LANGUAGES = ["rust", "javascript", "go", "c"]
 
-        # RUNTIME_PATHS = {"wasmer": WASMER_PATH, "wasmEdge": WASM_EDGE_PATH}
-        RUNTIME_PATHS = {"wasmer": WASMER_PATH}
+        RUNTIME_PATHS = {"wasmer": WASMER_PATH, "wasmtime": WASM_TIME}
+        # RUNTIME_PATHS = {"wasmer": WASMER_PATH}
         RUNTIMES = list(RUNTIME_PATHS.keys())
 
+        PARAMETERS = {"binarytrees": 18, "spectral-norm": 1900, "nbody": 20}
+
         @classmethod
-        def parameters(cls, algorithm: str, language: str) -> str:
-            if algorithm == "binarytrees":
-                return "18"
-            # if language == "javascript":
-            #     if algorithm == "nbody":
-            #         return '{"n": 1}'
-            #     return "{}"
+        def pipe_command(cls, algorithm: str, language: str) -> str:
+            value = str(cls.PARAMETERS[algorithm])
+
+            if language == "javascript":
+                return "echo '{\"n\": %s}' |" % value
+
             return ""
+
+        @classmethod
+        def arguments(cls, algorithm: str, language: str) -> str:
+            if language == "javascript":
+                return ""
+
+            return str(cls.PARAMETERS[algorithm])
 
     def __init__(self) -> None:
         super(WasmRunner, self).__init__()
-        self.algorithms = FactorModel("algorithm", WasmRunnerConfig.ALGORITHMS)
-        self.languages = FactorModel("language", WasmRunnerConfig.LANGUAGES)
-        self.runtimes = FactorModel("runtime", WasmRunnerConfig.RUNTIMES)
+        self.config: Type[WasmRunnerConfig] = WasmRunnerConfig
+        self.algorithms = FactorModel("algorithm", self.config.ALGORITHMS)
+        self.languages = FactorModel("language", self.config.LANGUAGES)
+        self.runtimes = FactorModel("runtime", self.config.RUNTIMES)
 
     @property
     def factors(self) -> List[FactorModel]:
@@ -125,13 +144,17 @@ class WasmRunner(TimedRunner):
         run_variation = context.run_variation
 
         algorithm = run_variation[self.algorithms.factor_name]
-        language  = run_variation[self.languages.factor_name]
-        runtime   = WasmRunnerConfig.RUNTIME_PATHS[run_variation[self.runtimes.factor_name]]
+        language = run_variation[self.languages.factor_name]
+        runtime = self.config.RUNTIME_PATHS[run_variation[self.runtimes.factor_name]]
 
-        executable = join(WasmRunnerConfig.PROBLEM_DIR, f"{algorithm}.{language}.wasm")
-        parameters = WasmRunnerConfig.parameters(algorithm, language)
-        command = f"{runtime} {executable} {parameters}"
-        
+        executable = join(self.config.PROBLEM_DIR, f"{algorithm}.{language}.wasm")
+        pipe_command = self.config.pipe_command(algorithm, language)
+        arguments = self.config.arguments(algorithm, language)
+        command = f"{pipe_command} {runtime} {executable} {arguments}".strip()
+
+        print(f"\nAlgorithm: {algorithm}\nLanguage: {language}")
+        print(f"Command: {command}\n")
+
         # Not beautiful, but gets the job done...
         # There is no obvious way for this object to know that it is supposed to set the file size.
         # But as it is the only object ever touching the actual binary, this is the easiest thing to do
@@ -145,6 +168,10 @@ class WasmRunner(TimedRunner):
     def interact(self, context: RunnerContext) -> None:
         self.wait()
 
+    def stop(self) -> None:
+        super(WasmRunner, self).stop()
+        remove(self.config.SCRIPT_PATH)
+
     def report_time(self) -> int:
 
         with open(self.time_output, "r") as file:
@@ -156,6 +183,6 @@ class WasmRunner(TimedRunner):
         execution_time = user_time + system_time
 
         return execution_time
-    
+
 
 WasmRunnerConfig = WasmRunner.WasmRunnerConfig
