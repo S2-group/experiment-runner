@@ -105,10 +105,9 @@ class WasmRunner(TimedRunner):
         LANGUAGES = ["rust", "javascript", "go", "c"]
 
         RUNTIME_PATHS = {"wasmer": WASMER_PATH, "wasmtime": WASM_TIME}
-        # RUNTIME_PATHS = {"wasmer": WASMER_PATH}
         RUNTIMES = list(RUNTIME_PATHS.keys())
 
-        PARAMETERS = {"binarytrees": 18, "spectral-norm": 1900, "nbody": 20}
+        PARAMETERS = {"binarytrees": 18, "spectral-norm": 1900, "nbody": 5000000}
 
         @classmethod
         def pipe_command(cls, algorithm: str, language: str) -> str:
@@ -152,7 +151,7 @@ class WasmRunner(TimedRunner):
         arguments = self.config.arguments(algorithm, language)
         command = f"{pipe_command} {runtime} {executable} {arguments}".strip()
 
-        print(f"\nAlgorithm: {algorithm}\nLanguage: {language}")
+        print(f"\nAlgorithm: {algorithm}\nLanguage: {language}\nRuntime: {runtime}")
         print(f"Command: {command}\n")
 
         # Not beautiful, but gets the job done...
