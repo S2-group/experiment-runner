@@ -1,8 +1,5 @@
 */__pycache__/*
-examples/linux-ps-profiling/primer
-examples/linux-powerjoular-profiling/primer
 **/__pycache__/
-# **/experiments/
 **/compare_wasm/
 */.DS_Store
 .DS_Store
@@ -12,5 +9,6 @@ tmp/
 _trial_temp/
 pycharm-interpreter.sh
 python
+
+/.idea/
 /venv/
-/experiments/wasm-performance-evaluation/experiments/compare_wasm.zip

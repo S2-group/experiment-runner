@@ -1,7 +1,7 @@
 import logging
 import stat as lib_stat
 from subprocess import Popen
-from typing import List, Type
+from typing import List, Type, Tuple
 from os import stat, kill, getcwd, chmod, remove
 from signal import Signals
 from os.path import join
@@ -136,7 +136,7 @@ class WasmRunner(TimedRunner):
     def factors(self) -> List[FactorModel]:
         return [self.algorithms, self.languages, self.runtimes]
 
-    def start(self, context: RunnerContext) -> tuple[Popen, int]:
+    def start(self, context: RunnerContext) -> Tuple[Popen, int]:
         super(WasmRunner, self).start(context)
 
         output_time_path = join(context.run_dir, "runtime.csv")

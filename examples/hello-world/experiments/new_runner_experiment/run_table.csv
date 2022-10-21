@@ -1,4 +1,0 @@
-__run_id,__done,example_factor1,example_factor2,avg_cpu,avg_mem
-run_0,DONE,example_treatment2,False, , 
-run_1,DONE,example_treatment3,True, , 
-run_2,DONE,example_treatment3,False, , 
