@@ -12,3 +12,5 @@ tmp/
 _trial_temp/
 pycharm-interpreter.sh
 python
+/venv/
+/experiments/wasm-performance-evaluation/experiments/compare_wasm.zip

@@ -2,12 +2,8 @@
 <project version="4">
   <component name="WebServers">
     <option name="servers">
-      <webServer id="d62a1e67-5e13-4fab-8b5d-2802abe78c47" name="PI">
-        <fileTransfer accessType="SFTP" host="PI" port="22" sshConfigId="d935bd28-4ae5-42d8-b454-20514e83b12d" sshConfig="pi@PI:22 agent" authAgent="true">
-          <advancedOptions>
-            <advancedOptions dataProtectionLevel="Private" keepAliveTimeout="0" passiveMode="true" shareSSLContext="true" />
-          </advancedOptions>
-        </fileTransfer>
+      <webServer id="aedd7a89-37ef-4ee8-8a83-5952dea05116" name="pi@pi:22 agent">
+        <fileTransfer accessType="SFTP" host="pi" port="22" sshConfigId="d935bd28-4ae5-42d8-b454-20514e83b12d" sshConfig="pi@pi:22 agent" authAgent="true" />
       </webServer>
     </option>
   </component>
