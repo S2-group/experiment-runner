@@ -1,0 +1,5 @@
+__run_id,__done,data_type,avg_cpu,total_energy
+run_0,DONE,audio,0.003,0.034
+run_1,DONE,image,0.0,0.0
+run_2,DONE,text,0.005,0.068
+run_3,DONE,video,0.003,0.033
