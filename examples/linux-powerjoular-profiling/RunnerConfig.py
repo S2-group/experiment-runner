@@ -23,7 +23,9 @@ class RunnerConfig:
     # ================================ USER SPECIFIC CONFIG ================================
     """The name of the experiment."""
     name:                       str             = "new_runner_experiment"
-
+    if os.path.exists(ROOT_DIR / 'experiments' / name):
+        # convert time to date and time
+        name = name + "_" + time.strftime("%Y%m%d-%H%M%S")
     """The path in which Experiment Runner will create a folder with the name `self.name`, in order to store the
     results from this experiment. (Path does not need to exist - it will be created if necessary.)
     Output path defaults to the config file's path, inside the folder 'experiments'"""

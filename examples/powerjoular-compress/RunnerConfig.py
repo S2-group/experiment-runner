@@ -77,7 +77,8 @@ class RunnerConfig:
     def before_run(self) -> None:
         """Perform any activity required before starting a run.
         No context is available here as the run is not yet active (BEFORE RUN)"""
-        pass
+        # remove compressed files from previous run, which is *.huffman
+        subprocess.check_call(shlex.split(f'rm -rf {self.ROOT_DIR / "data" / "*.huffman"}'))
 
     def start_run(self, context: RunnerContext) -> None:
         """Perform any activity required for starting the run here.
