@@ -15,7 +15,7 @@ Experiment Runner is a generic framework to automatically execute measurement-ba
 
 ## Requirements
 
-The framework has been tested with Python3 version 3.8, but should also work with any higher version. It has been tested under a Linux OS. It does **not** work on Windows/macOS.
+The framework has been tested with Python3 version 3.8, but should also work with any higher version. It has been tested under Linux and macOS. It does **not** work on Windows (at the moment).
 
 To get started:
 

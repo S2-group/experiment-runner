@@ -5,6 +5,7 @@ import hashlib
 import ast
 from typing import List
 from importlib import util
+import multiprocessing
 
 from ConfigValidator.Config.Models.Metadata import Metadata
 from ConfigValidator.CustomErrors.BaseError import BaseError
@@ -53,7 +54,9 @@ if __name__ == "__main__":
         if is_no_argument_given(sys.argv):
             sys.argv.append('help')
             CLIRegister.parse_command(sys.argv)
-        elif is_config_file_given(sys.argv):                                # If the first arugments ends with .py -> a config file is entered
+        elif is_config_file_given(sys.argv):                                # If the first argument ends with .py -> a config file is entered
+            multiprocessing.set_start_method('fork')                        # Set "fork" as the default method for spawning new processes 
+                                                                            # (in this way the new processes will have a shared context when running)                   
             config_file = load_and_get_config_file_as_module(sys.argv)
 
             if hasattr(config_file, 'RunnerConfig'):
