@@ -1,7 +1,6 @@
 
 
 import os
-from huffman import Huffman
 import sys
 sys.setrecursionlimit(1000000)	  #python默认的递归深度有限，约900多，压缩文件时会超过，故引用sys修改最大递归深度
 
@@ -259,6 +258,8 @@ def compress(path):
             # run tcmpr -c file_path -alg huffman, only when the command is finished, the next command will be executed
             # ret = os.system("tcmpr -c " + file_path + " -alg huffman")
             # in_file = input(file_path)
+            if file_path.split('.')[-1] == 'huffman' or file_path.split('.')[-1] == 'lzw':
+                continue
             file_encode(file_path)
             # if ret != 0:
             #     print("compress error: " + file_path)
@@ -269,7 +270,10 @@ def compress(path):
 if __name__ == '__main__':
     # read the argument from the command line
     data_type = os.sys.argv[1]
-    path = "./data/" + data_type
+    # replace '-' with '/' in data_type
+    path_tmp = data_type.split('-')
+    file_path = path_tmp[0] + '/' + path_tmp[1] + '-' + path_tmp[2] + '/' + path_tmp[3]
+    path = "./data/" + file_path
     ret = compress(path)
     # if ret is true, send signal the task is done
     if ret:
