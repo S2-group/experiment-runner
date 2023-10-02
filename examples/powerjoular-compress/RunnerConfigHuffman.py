@@ -65,16 +65,20 @@ class RunnerConfig:
         """Create and return the run_table model here. A run_table is a List (rows) of tuples (columns),
         representing each run performed"""
         file_format_list = ['txt', 'pdf', 'jpg', 'png', 'mp4', 'mkv']
-        # file_format_list = ['txtsmall']
+        # file_format_list = ['mp4']
         file_size_list = ['small', 'large']
+        # file_size_list = ['small']
         file_repetition_list = ['low', 'high']
+        # file_repetition_list = ['high']
+        num_list = [1,2,3,4,5,6,7,8,9,10]
+        # num_list = [8]
 
         # make a permutation of all the factors
         data_type_factors = []
         for format in file_format_list:
             for size in file_size_list:
                 for repetition in file_repetition_list:
-                    for num in range(1,11):
+                    for num in num_list:
                         factor = format + '-' + size + '-' + repetition + '-' + str(num)
                         data_type_factors.append(factor)
         print(data_type_factors)
@@ -109,9 +113,9 @@ class RunnerConfig:
         data_type = context.run_variation['data_type']
 
         # start the target python
-        self.target = subprocess.Popen(['python', './compress_huffman.py', data_type],
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=self.ROOT_DIR,
-        )
+        # self.target = subprocess.Popen(['python', './compress_huffman.py', data_type],
+        #     stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=self.ROOT_DIR,
+        # )
 
         # C++ version
         # path_tmp = data_type.split('-')
@@ -128,6 +132,32 @@ class RunnerConfig:
         # self.target = subprocess.Popen("/home/roy/green-lab/Huffman-Coding/archive "+ files_str,
         #     stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=self.ROOT_DIR,
         # )
+
+        # compress_cmd = "/home/roy/green-lab/Huffman-Coding/archive " + \
+        #                "/home/roy/green-lab/experiment-runner/examples/powerjoular-compress/data/mp4/large-high/10/6bgLZnwL0VQ.mp4 "
+        data_path = "/home/roy/green-lab/experiment-runner/examples/powerjoular-compress/data/"
+        path_tmp = data_type.split('-')
+        file_path = path_tmp[0] + '/' + path_tmp[1] + '-' + path_tmp[2] + '/' + path_tmp[3]
+        path = data_path + file_path
+        cd_cmd = "cd " + path + "; "
+        rm_cmd = "rm -rf *.huffman *.lzw .huffman .lzw; "
+        final_cmd = cd_cmd + rm_cmd
+        subprocess.Popen(final_cmd,
+                         stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+        # get all the files in the directory path
+        files = os.listdir(path)
+        files_cmd = ""
+        for file in files:
+            if file.endswith(".huffman") or file.endswith(".lzw"):
+                continue
+            else:
+                files_cmd += file + " "
+        compress_cmd = cd_cmd + "/home/roy/green-lab/Huffman-Coding/archive " + files_cmd
+        print(compress_cmd)
+        self.target = subprocess.Popen(compress_cmd,
+                                       stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+
+
         # self.target = subprocess.Popen(["/home/roy/green-lab/Huffman-Coding/archive",
         #                                 "~/green-lab/experiment-runner/examples/powerjoular-compress/data/txt/small-low/3/8734.txt "],
         #                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=self.ROOT_DIR, shell=True)
@@ -200,16 +230,15 @@ class RunnerConfig:
         # print("data_path: ", data_path)
         # compute the sum size of files without extension huffman nor lzw
         sum_size = 0
-        for file in os.listdir(data_path):
-            if file.endswith(".huffman") or file.endswith(".lzw"):
-                continue
-            else:
-                sum_size += os.path.getsize(os.path.join(data_path, file)) # unit Byte
-        # compute the sum size of files with extension huffman
         sum_size_huffman = 0
         for file in os.listdir(data_path):
             if file.endswith(".huffman"):
                 sum_size_huffman += os.path.getsize(os.path.join(data_path, file))
+            elif file.endswith(".lzw"):
+                continue
+            else:
+                sum_size += os.path.getsize(os.path.join(data_path, file)) # unit Byte
+        print("sum_size: ", sum_size, " sum_size_huffman: ", sum_size_huffman)
         # compute the compression ratio
         compression_ratio = sum_size / sum_size_huffman
         # compute the compression time
@@ -234,10 +263,20 @@ class RunnerConfig:
         df['cpu_utilization'] = cpu_utilization
         df['energy_efficiency'] = energy_efficiency
         # save the df into csv file
-        # print(df)
+        print(df)
         # save the df into original file
         df.to_csv(context.run_dir / output_path, index=False)
         print("finished: ", context.run_dir / output_path)
+
+        data_path = "/home/roy/green-lab/experiment-runner/examples/powerjoular-compress/data/"
+        path_tmp = data_type.split('-')
+        file_path = path_tmp[0] + '/' + path_tmp[1] + '-' + path_tmp[2] + '/' + path_tmp[3]
+        path = data_path + file_path
+        cd_cmd = "cd " + path + "; "
+        rm_cmd = "rm -rf *.huffman *.lzw .huffman .lzw"
+        final_cmd = cd_cmd + rm_cmd
+        subprocess.Popen(final_cmd,
+                         stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
         return df.to_dict()
 
     def after_experiment(self) -> None:
