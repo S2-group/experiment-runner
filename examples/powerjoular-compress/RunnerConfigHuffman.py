@@ -24,7 +24,7 @@ class RunnerConfig:
 
     # ================================ USER SPECIFIC CONFIG ================================
     """The name of the experiment."""
-    name:                       str             = "huffman"
+    name:                       str             = "huffman_formal"
     # check the if the output path exists, if exists, add timestamp to the name
     if os.path.exists(ROOT_DIR / 'experiments' / name):
         # convert time to date and time
@@ -64,13 +64,13 @@ class RunnerConfig:
     def create_run_table_model(self) -> RunTableModel:
         """Create and return the run_table model here. A run_table is a List (rows) of tuples (columns),
         representing each run performed"""
-        file_format_list = ['txt', 'pdf', 'jpg', 'png', 'mp4', 'mkv']
+        file_format_list = ['txt', 'pdf', 'jpg', 'png', 'mp4', 'flv']
         # file_format_list = ['mp4']
         file_size_list = ['small', 'large']
         # file_size_list = ['small']
         file_repetition_list = ['low', 'high']
         # file_repetition_list = ['high']
-        num_list = [1,2,3,4,5,6,7,8,9,10]
+        num_list = [i for i in range(1, 51)]
         # num_list = [8]
 
         # make a permutation of all the factors
@@ -101,7 +101,7 @@ class RunnerConfig:
         # data_type = context.run_variation['data_type']
         # path_tmp = data_type.split('-')
         # file_path = path_tmp[0] + '/' + path_tmp[1] + '-' + path_tmp[2] + '/' + path_tmp[3]
-        # subprocess.check_call(shlex.split(f'rm -rf {self.ROOT_DIR / "data" / file_path / "*.huffman"}'))
+        # subprocess.check_call(shlex.split(f'rm -rf {self.ROOT_DIR / "data2" / file_path / "*.huffman"}'))
         pass
 
     def start_run(self, context: RunnerContext) -> None:
@@ -120,21 +120,21 @@ class RunnerConfig:
         # C++ version
         # path_tmp = data_type.split('-')
         # file_path = path_tmp[0] + '/' + path_tmp[1] + '-' + path_tmp[2] + '/' + path_tmp[3]
-        # data_path = "/home/roy/green-lab/experiment-runner/examples/powerjoular-compress/data/" + file_path
+        # data_path = "/home/roy/green-lab/experiment-runner/examples/powerjoular-compress/data2/" + file_path
         # sum_size = 0
         # files_str = ""
         # for file in os.listdir(data_path):
         #     if file.endswith(".huffman") or file.endswith(".lzw"):
         #         continue
         #     else:
-        #         files_str += "./data/" + file_path + "/" + file + " "
+        #         files_str += "./data2/" + file_path + "/" + file + " "
         # print(files_str)
         # self.target = subprocess.Popen("/home/roy/green-lab/Huffman-Coding/archive "+ files_str,
         #     stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=self.ROOT_DIR,
         # )
 
         # compress_cmd = "/home/roy/green-lab/Huffman-Coding/archive " + \
-        #                "/home/roy/green-lab/experiment-runner/examples/powerjoular-compress/data/mp4/large-high/10/6bgLZnwL0VQ.mp4 "
+        #                "/home/roy/green-lab/experiment-runner/examples/powerjoular-compress/data2/mp4/large-high/10/6bgLZnwL0VQ.mp4 "
         data_path = "/home/roy/green-lab/experiment-runner/examples/powerjoular-compress/data/"
         path_tmp = data_type.split('-')
         file_path = path_tmp[0] + '/' + path_tmp[1] + '-' + path_tmp[2] + '/' + path_tmp[3]
@@ -159,7 +159,7 @@ class RunnerConfig:
 
 
         # self.target = subprocess.Popen(["/home/roy/green-lab/Huffman-Coding/archive",
-        #                                 "~/green-lab/experiment-runner/examples/powerjoular-compress/data/txt/small-low/3/8734.txt "],
+        #                                 "~/green-lab/experiment-runner/examples/powerjoular-compress/data2/txt/small-low/3/8734.txt "],
         #                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=self.ROOT_DIR, shell=True)
 
 
@@ -209,8 +209,8 @@ class RunnerConfig:
         self.target.wait()
     
     def populate_run_data(self, context: RunnerContext) -> Optional[Dict[str, Any]]:
-        """Parse and process any measurement data here.
-        You can also store the raw measurement data under `context.run_dir`
+        """Parse and process any measurement data2 here.
+        You can also store the raw measurement data2 under `context.run_dir`
         Returns a dictionary with keys `self.run_table_model.data_columns` and their values populated"""
 
         # powerjoular.csv - Power consumption of the whole system
