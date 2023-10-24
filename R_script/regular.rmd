@@ -1,0 +1,452 @@
+---
+output:
+  pdf_document: default
+  always_allow_html: yes
+  html_document:
+    df_print: paged
+  word_document: default
+---
+
+```{r}
+# load the csv
+data <- read.csv("output_result.csv")
+names(data)
+```
+
+```{r}
+data$exp <- factor(data$exp)
+data$algo <- factor(data$algo)
+data$type <- factor(data$type)
+data$format <- factor(data$format)
+```
+
+```{r}
+describe_data_numeric <- function(column) {
+  cat("--------------\n")
+  cat("Summary:\n")
+  print(summary(column))
+  cat("Standard Deviation (sd):\n")
+  print(sd(column))
+  cat("Count:\n")
+  print(length(column))
+  cat("--------------\n")
+}
+
+```
+```{r}
+describe_data_factor <- function(column) {
+  cat("--------------\n")
+  cat("Summary:\n")
+  cat(table(column))
+  cat("--------------\n")
+}
+```
+
+```{r}
+library(ggplot2)
+library(gridExtra)
+draw_hist_den_figure <- function(data, column, title) {
+  p <- ggplot(data, aes(x=.data[[column]])) + 
+  geom_histogram(aes(y=..density..), fill="lightblue")+
+  geom_density(alpha=.2)+
+  labs(title=title, x=column, y="Density")
+  p
+} 
+```
+
+### Dependent Variable
+
+
+```{r}
+par(mfrow=c(1,3))
+hist(data$compression_ratio, main="Compression Ratio(%)", xlab="Compression Ratio(%)", col="lightblue")
+hist(data$compression_time, main="Compression Time(s)", xlab="Compression Time(s)", col="lightblue")
+hist(data$energy_efficiency, main="CompresEnergy Efficiency(KB/J)", xlab="Energy Efficiency(KB/J)", col="lightblue")
+```
+```{r}
+describe_data_numeric(data$compression_ratio)
+describe_data_numeric(data$compression_time)
+describe_data_numeric(data$energy_efficiency)
+```
+
+
+
+### Independent Variable
+
+
+```{r}
+barplot(table(data$algo), main="Compression Algorithm", xlab="Compression Algorithm", col="lightblue", ylab="Count")
+describe_data_factor(data$algo)
+```
+
+```{r}
+
+barplot(table(data$type), main="Compression Type", xlab="Compression Type", col="lightblue", ylab="Count")
+describe_data_factor(data$type)
+```
+
+```{r}
+barplot(table(data$format), main="Compression Format", xlab="Compression Format", col="lightblue", ylab="Count")
+describe_data_factor(data$format)
+```
+
+
+
+
+
+```{r}
+draw_hist_den_figure(data, "size", "Size(KB)")
+describe_data_numeric(data$size)
+```
+
+
+```{r}
+draw_hist_den_figure(data, "entropy", "Entropy(bit)")
+describe_data_numeric(data$entropy)
+```
+
+### Split by Compression Algorithm
+
+
+```{r}
+lzw_data <- subset(data, algo == "lzw")
+huffman_data <- subset(data, algo == "huffman")
+```
+```{r}
+ggplot(data, aes(x = compression_time, fill = algo)) +
+  geom_density(alpha = 0.5) +
+  labs(title = "Compression Ratio Density", x = "Compression Ratio(%)", y = "Density") +
+  theme_minimal()
+```
+```{r}
+ggplot(data, aes(x = compression_time, fill = algo)) +
+  geom_density(alpha = 0.5) +
+  labs(title = "Compression Time Density", x = "Compression Time(s)", y = "Density") +
+  theme_minimal()
+```
+```{r}
+ggplot(data, aes(x = compression_time, fill = algo)) +
+  geom_density(alpha = 0.5) +
+  labs(title = "Energy Efficiency Density", x = "Energy Efficiency(KB/J)", y = "Density") +
+  theme_minimal()
+```
+
+```{r}
+describe_data_numeric(lzw_data$compression_ratio)
+describe_data_numeric(huffman_data$compression_ratio)
+describe_data_numeric(lzw_data$compression_time)
+describe_data_numeric(huffman_data$compression_time)
+describe_data_numeric(lzw_data$energy_efficiency)
+describe_data_numeric(huffman_data$energy_efficiency)
+```
+
+### Split by Compression Type
+```{r}
+image_data <- subset(data, type == "image")
+text_data <- subset(data, type == "text")
+video_data <- subset(data, type == "video")
+```
+
+
+```{r}
+ggplot(data, aes(x = compression_time, fill = type)) +
+  geom_density(alpha = 0.5) +
+  labs(title = "Compression Ratio Density", x = "Compression Ratio(%)", y = "Density") +
+  theme_minimal()
+```
+```{r}
+ggplot(data, aes(x = compression_time, fill = type)) +
+  geom_density(alpha = 0.5) +
+  labs(title = "Compression Time Density", x = "Compression Time(s)", y = "Density") +
+  theme_minimal()
+```
+```{r}
+ggplot(data, aes(x = compression_time, fill = type)) +
+  geom_density(alpha = 0.5) +
+  labs(title = "Energy Efficiency Density", x = "Energy Efficiency(KB/J)", y = "Density") +
+  theme_minimal()
+```
+
+```{r}
+describe_data_numeric(image_data$compression_ratio)
+describe_data_numeric(text_data$compression_ratio)
+describe_data_numeric(video_data$compression_ratio)
+describe_data_numeric(image_data$compression_time)
+describe_data_numeric(text_data$compression_time)
+describe_data_numeric(video_data$compression_time)
+describe_data_numeric(image_data$energy_efficiency)
+describe_data_numeric(text_data$energy_efficiency)
+describe_data_numeric(video_data$energy_efficiency)
+```
+
+### Split by Compression Format
+```{r}
+txt_data <- subset(data, format == "txt")
+pdf_data <- subset(data, format == "pdf")
+flv_data <- subset(data, format == "flv")
+mp4_data <- subset(data, format == "mp4")
+jpg_data <- subset(data, format == "jpg")
+png_data <- subset(data, format == "png")
+```
+
+```{r}
+ggplot(data, aes(x = compression_time, fill = format)) +
+  geom_density(alpha = 0.5) +
+  labs(title = "Compression Ratio Density", x = "Compression Ratio(%)", y = "Density") +
+  theme_minimal()
+```
+```{r}
+ggplot(data, aes(x = compression_time, fill = format)) +
+  geom_density(alpha = 0.5) +
+  labs(title = "Compression Time Density", x = "Compression Time(s)", y = "Density") +
+  theme_minimal()
+```
+```{r}
+ggplot(data, aes(x = compression_time, fill = format)) +
+  geom_density(alpha = 0.5) +
+  labs(title = "Energy Efficiency Density", x = "Energy Efficiency(KB/J)", y = "Density") +
+  theme_minimal()
+```
+
+```{r}
+describe_data_numeric(txt_data$compression_ratio)
+describe_data_numeric(pdf_data$compression_ratio)
+describe_data_numeric(flv_data$compression_ratio)
+describe_data_numeric(mp4_data$compression_ratio)
+describe_data_numeric(jpg_data$compression_ratio)
+describe_data_numeric(png_data$compression_ratio)
+
+describe_data_numeric(txt_data$compression_time)
+describe_data_numeric(pdf_data$compression_time)
+describe_data_numeric(flv_data$compression_time)
+describe_data_numeric(mp4_data$compression_time)
+describe_data_numeric(jpg_data$compression_time)
+describe_data_numeric(png_data$compression_time)
+
+describe_data_numeric(txt_data$energy_efficiency)
+describe_data_numeric(pdf_data$energy_efficiency)
+describe_data_numeric(flv_data$energy_efficiency)
+describe_data_numeric(mp4_data$energy_efficiency)
+describe_data_numeric(jpg_data$energy_efficiency)
+describe_data_numeric(png_data$energy_efficiency)
+```
+
+
+### Split by File Size
+
+```{r}
+par(mfrow=c(1,3))
+scatter.smooth(data$size, data$compression_ratio, main="Compression Ratio vs File Size", xlab="File Size(KB)", ylab="Compression Ratio(%)", col="lightblue")
+scatter.smooth(data$size, data$compression_time, main="Compression Time vs File Size", xlab="File Size(KB)", ylab="Compression Time(s)", col="lightblue")
+scatter.smooth(data$size, data$energy_efficiency, main="Energy Efficiency vs File Size", xlab="File Size(KB)", ylab="Energy Efficiency(KB/J)", col="lightblue")
+```
+
+### Split by Entropy
+```{r}
+par(mfrow=c(1,3))
+scatter.smooth(data$entropy, data$compression_ratio, main="Compression Ratio vs Entropy", xlab="Entropy(bit)", ylab="Compression Ratio(%)", col="lightblue")
+scatter.smooth(data$entropy, data$compression_time, main="Compression Time vs Entropy", xlab="Entropy(bit)", ylab="Compression Time(s)", col="lightblue")
+scatter.smooth(data$entropy, data$energy_efficiency, main="Energy Efficiency vs Entropy", xlab="Entropy(bit)", ylab="Energy Efficiency(KB/J)", col="lightblue")
+```
+
+
+### Relatios
+
+#### Size
+
+```{r}
+library(ggplot2)
+library(ggpubr)
+
+
+p1 <- ggplot(data, aes(x=algo, y=compression_time, fill=algo)) + 
+     geom_violin() + 
+     geom_boxplot(width=0.1) + 
+     theme_bw() + 
+     labs(title="Compression Time", x="Compression Algorithm", y="Compression Time(s)")
+
+
+p2 <- ggplot(data, aes(x=algo, y=size, fill=algo)) + 
+     geom_violin() + 
+     geom_boxplot(width=0.1) + 
+     theme_bw() + 
+     labs(title="Size", x="Compression Algorithm", y="Size(KB)")
+
+
+p <- ggarrange(p1, p2, ncol=2, align="v")
+
+p
+```
+
+
+
+```{r}
+p1 <- ggplot(data, aes(x=algo, y=compression_time, fill=algo)) + 
+     geom_violin() + 
+     geom_boxplot(width=0.1) + 
+     theme_bw() + 
+     labs(title="Compression Ratio", x="Compression Algorithm", y="Compression Ratio(%)")
+
+
+p2 <- ggplot(data, aes(x=algo, y=size, fill=algo)) + 
+     geom_violin() + 
+     geom_boxplot(width=0.1) + 
+     theme_bw() + 
+     labs(title="Size", x="Compression Algorithm", y="Size(KB)")
+
+
+p <- ggarrange(p1, p2, ncol=2, align="v")
+
+p
+```
+
+```{r}
+p1 <- ggplot(data, aes(x=algo, y=energy_efficiency, fill=algo)) +
+     geom_violin() + 
+     geom_boxplot(width=0.1) + 
+     theme_bw() + 
+     labs(title="Energy Efficiency", x="Compression Algorithm", y="Energy Efficiency(KB/J)")
+
+
+p2 <- ggplot(data, aes(x=algo, y=size, fill=algo)) + 
+     geom_violin() + 
+     geom_boxplot(width=0.1) + 
+     theme_bw() + 
+     labs(title="Size", x="Compression Algorithm", y="Size(KB)")
+
+
+p <- ggarrange(p1, p2, ncol=2, align="v")
+
+p
+```
+
+
+#### Entropy
+```{r}
+library(ggplot2)
+library(ggpubr)
+
+
+p1 <- ggplot(data, aes(x=algo, y=compression_time, fill=algo)) + 
+     geom_violin() + 
+     geom_boxplot(width=0.1) + 
+     theme_bw() + 
+     labs(title="Compression Time", x="Compression Algorithm", y="Compression Time(s)")
+
+
+p2 <- ggplot(data, aes(x=algo, y=entropy, fill=algo)) + 
+     geom_violin() + 
+     geom_boxplot(width=0.1) + 
+     theme_bw() + 
+     labs(title="Entropy", x="Compression Algorithm", y="Entropy(bit)")
+
+
+p <- ggarrange(p1, p2, ncol=2, align="v")
+
+p
+```
+
+
+
+```{r}
+p1 <- ggplot(data, aes(x=algo, y=compression_time, fill=algo)) + 
+     geom_violin() + 
+     geom_boxplot(width=0.1) + 
+     theme_bw() + 
+     labs(title="Compression Ratio", x="Compression Algorithm", y="Compression Ratio(%)")
+
+
+p2 <- ggplot(data, aes(x=algo, y=entropy, fill=algo)) + 
+     geom_violin() + 
+     geom_boxplot(width=0.1) + 
+     theme_bw() + 
+     labs(title="Entropy", x="Compression Algorithm", y="Entropy(bit)")
+
+
+p <- ggarrange(p1, p2, ncol=2, align="v")
+
+p
+```
+
+```{r}
+p1 <- ggplot(data, aes(x=algo, y=energy_efficiency, fill=algo)) +
+     geom_violin() + 
+     geom_boxplot(width=0.1) + 
+     theme_bw() + 
+     labs(title="Energy Efficiency", x="Compression Algorithm", y="Energy Efficiency(KB/J)")
+
+
+p2 <- ggplot(data, aes(x=algo, y=entropy, fill=algo)) + 
+     geom_violin() + 
+     geom_boxplot(width=0.1) + 
+     theme_bw() + 
+     labs(title="Entropy", x="Compression Algorithm", y="Entropy(bit)")
+
+
+p <- ggarrange(p1, p2, ncol=2, align="v")
+
+p
+```
+
+
+### 3d
+
+```{r}
+library(plotly)
+plot <- plot_ly(data, x = ~compression_ratio, y = ~compression_time, z = ~energy_efficiency, color = ~algo) %>%
+  add_markers(marker = list(size = 3))%>%
+  layout(scene = list(
+    xaxis = list(title = "Compression Ratio"),
+    yaxis = list(title = "Compression Time"),
+    zaxis = list(title = "Energy Efficiency")
+  ))
+plot
+```
+
+```{r}
+library(plotly)
+plot <- plot_ly(data, x = ~compression_ratio, y = ~compression_time, z = ~energy_efficiency, color = ~type)%>%
+add_markers(marker = list(size = 3))%>%
+  layout(scene = list(
+    xaxis = list(title = "Compression Ratio"),
+    yaxis = list(title = "Compression Time"),
+    zaxis = list(title = "Energy Efficiency")
+  ))
+plot
+```
+
+```{r}
+library(plotly)
+plot <- plot_ly(data, x = ~compression_ratio, y = ~compression_time, z = ~energy_efficiency, color = ~format)%>%
+add_markers(marker = list(size = 3))%>%
+  layout(scene = list(
+    xaxis = list(title = "Compression Ratio"),
+    yaxis = list(title = "Compression Time"),
+    zaxis = list(title = "Energy Efficiency")
+  ))
+plot
+```
+
+```{r}
+library(plotly)
+plot <- plot_ly(data, x = ~compression_ratio, y = ~compression_time, z = ~energy_efficiency, color = ~size)%>%
+  add_markers(marker = list(size = 2))%>%
+  layout(scene = list(
+    xaxis = list(title = "Compression Ratio"),
+    yaxis = list(title = "Compression Time"),
+    zaxis = list(title = "Energy Efficiency")
+  ))
+plot
+```
+
+```{r}
+library(plotly)
+plot <- plot_ly(data, x = ~compression_ratio, y = ~compression_time, z = ~energy_efficiency, color = ~entropy)%>%
+  add_markers(marker = list(size = 2))%>%
+  layout(scene = list(
+    xaxis = list(title = "Compression Ratio"),
+    yaxis = list(title = "Compression Time"),
+    zaxis = list(title = "Energy Efficiency")
+  ))
+plot
+```

@@ -1,0 +1,143 @@
+---
+output:
+  html_document: default
+  pdf_document: default
+---
+```{r}
+# load the csv
+data <- read.csv("output_result.csv")
+```
+
+```{r}
+# print data column names
+names(data)
+```
+    
+```{r}
+data$algo <- factor(data$algo)
+data$type <- factor(data$type)
+data$format <- factor(data$format)
+```
+
+```{r}
+library(nortest)
+check_lm_normality <- function(lm_model){
+  par(mfrow=c(1,2))
+  qqnorm(residuals(lm_model));qqline(residuals(lm_model)); 
+  plot(fitted(lm_model), residuals(lm_model))
+  # ks_test_result <- ks.test(residuals(lm_model), "pnorm")
+  # return(ks_test_result)
+  ad_test_result <- ad.test(residuals(lm_model))
+  return(ad_test_result)
+}
+```
+
+```{r}
+check_data_normality <- function(data){
+  par(mfrow=c(1,2))
+  qqnorm(data);qqline(data); 
+  plot(data)
+  ad_test_result <- ad.test(data)
+  return(ad_test_result)
+}
+```
+### Interaction
+```{r}
+interaction_lm <- lm(energy_efficiency ~ algo*(type+format+size+entropy), data=data)
+drop1(interaction_lm, test="F")
+```
+
+
+### algo
+
+```{r}
+lzw_data <- subset(data, algo == "lzw")
+huffman_data <- subset(data, algo == "huffman")
+
+
+check_data_normality(lzw_data$energy_efficiency)
+check_data_normality(huffman_data$energy_efficiency)
+```
+
+```{r}
+wilcox.test(lzw_data$energy_efficiency, huffman_data$energy_efficiency)
+```
+We use Wilcos test, it shows the compression ratio of LZW is significantly different than Huffman coding.
+
+
+### type
+
+```{r}
+type_lm <- lm(energy_efficiency ~ type+algo:type, data=data)
+check_lm_normality(type_lm)
+```
+
+```{r}
+library(ARTool)
+type_artm <- art(energy_efficiency ~ type*algo, data=data)
+anova(type_artm)
+```
+
+```{r}
+art.con(type_artm, "type")
+```
+
+### format
+
+```{r}
+format_lm <- lm(energy_efficiency ~ format+format:algo, data=data)
+check_lm_normality(format_lm)
+```
+same
+```{r}
+format_artm <- art(energy_efficiency ~ format*algo, data=data)
+anova(format_artm)
+```
+same
+```{r}
+art.con(format_artm, "format")
+```
+
+### size
+```{r}
+size_lm <- lm(energy_efficiency ~ size+size:algo, data=data)
+check_lm_normality(size_lm)
+```
+  
+```{r}  
+cor.test(data$energy_efficiency, data$size, method = "kendall")
+```
+
+### entropy
+```{r}
+entropy_lm <- lm(energy_efficiency ~ entropy+entropy:algo, data=data)
+check_lm_normality(entropy_lm)
+```
+  
+```{r}  
+cor.test(data$energy_efficiency, data$entropy, method = "kendall")
+```
+
+### Interaction
+```{r}
+all_lm <- lm(energy_efficiency ~ algo*(format + size + entropy)-(format + size + entropy), data=data)
+drop1(all_lm, test="F")
+check_data_normality(all_lm$residuals)
+```
+
+```{r}
+library(randomForest)
+rf_model <- randomForest(energy_efficiency ~ algo * (format + size + entropy) - (format + size + entropy),
+                         data = data,
+                         ntree = 500,  # Number of trees (you can adjust)
+                         mtry = 4)  # Number of variables to try at each split (you can adjust)
+
+# View the Random Forest model summary
+print(rf_model)
+
+# Important variables
+importance(rf_model)
+varImpPlot(rf_model)
+```
+
+

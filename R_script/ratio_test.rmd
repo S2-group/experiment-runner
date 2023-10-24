@@ -1,0 +1,159 @@
+---
+output:
+  html_document: default
+  pdf_document: default
+---
+```{r}
+# load the csv
+data <- read.csv("output_result.csv")
+```
+
+```{r}
+# print data column names
+names(data)
+```
+    
+```{r}
+data$algo <- factor(data$algo)
+data$type <- factor(data$type)
+data$format <- factor(data$format)
+```
+
+```{r}
+library(nortest)
+check_lm_normality <- function(lm_model){
+  par(mfrow=c(1,2))
+  qqnorm(residuals(lm_model));qqline(residuals(lm_model)); 
+  plot(fitted(lm_model), residuals(lm_model))
+  # ks_test_result <- ks.test(residuals(lm_model), "pnorm")
+  # return(ks_test_result)
+  ad_test_result <- ad.test(residuals(lm_model))
+  return(ad_test_result)
+}
+```
+We don't use ks.test because it is not suitable ref:https://stats.stackexchange.com/questions/232011/ties-should-not-be-present-in-one-sample-kolmgorov-smirnov-test-in-r
+```{r}
+check_data_normality <- function(data){
+  par(mfrow=c(1,2))
+  qqnorm(data);qqline(data); 
+  plot(data)
+  ad_test_result <- ad.test(data)
+  return(ad_test_result)
+}
+```
+### Interaction
+```{r}
+interaction_lm <- lm(compression_ratio ~ algo*(type+format+size+entropy), data=data)
+drop1(interaction_lm, test="F")
+```
+
+There indeed exists interaction between algo and type, algo and format, algo and size, algo and entropy.
+
+### algo
+
+```{r}
+lzw_data <- subset(data, algo == "lzw")
+huffman_data <- subset(data, algo == "huffman")
+
+
+check_data_normality(lzw_data$compression_ratio)
+check_data_normality(huffman_data$compression_ratio)
+```
+check the two subsets normality at first.
+They are not normal.
+```{r}
+wilcox.test(lzw_data$compression_ratio, huffman_data$compression_ratio)
+```
+We use Wilcos test, it shows the compression ratio of LZW is significantly different than Huffman coding.
+
+
+### type
+
+```{r}
+type_lm <- lm(compression_ratio ~ type+algo:type, data=data)
+check_lm_normality(type_lm)
+```
+check the normality of the linear model. It is not normal.
+
+```{r}
+library(ARTool)
+type_artm <- art(compression_ratio ~ type*algo, data=data)
+anova(type_artm)
+```
+
+We can conclude that there are significant differences between the treatment groups because the p-value is less than the significance criterion of 0.05.
+We know there is a substantial difference between groups based on the test's results, but we don't know which pairings of groups are different.
+```{r}
+art.con(type_artm, "type")
+```
+The contrasts function art.con() can be used to calculate pairwise comparisons between group levels with different testing corrections.
+The p-values showing that the three groups are significantly different from each other.
+
+### format
+
+```{r}
+format_lm <- lm(compression_ratio ~ format+format:algo, data=data)
+check_lm_normality(format_lm)
+```
+same
+```{r}
+format_artm <- art(compression_ratio ~ format*algo, data=data)
+anova(format_artm)
+```
+same
+```{r}
+art.con(format_artm, "format")
+```
+
+### size
+```{r}
+size_lm <- lm(compression_ratio ~ size+size:algo, data=data)
+check_lm_normality(size_lm)
+```
+  
+```{r}  
+# wilcox.test(data$compression_ratio, data$size)
+cor.test(data$compression_ratio, data$size, method = "kendall")
+```
+
+
+### entropy
+```{r}
+entropy_lm <- lm(compression_ratio ~ entropy+entropy:algo, data=data)
+check_lm_normality(entropy_lm)
+```
+  
+```{r}  
+# wilcox.test(data$compression_ratio, data$entropy)
+cor.test(data$compression_ratio, data$entropy, method = "kendall")
+```
+
+### Interaction
+```{r}
+all_lm <- lm(compression_ratio ~ algo*(format + size + entropy)-(format + size + entropy), data=data)
+drop1(all_lm, test="F")
+check_data_normality(all_lm$residuals)
+```
+The linear model is not normal, so here we selected to use the generalized linear model which accommodates non-normal response variables.
+
+```{r}
+all_glm <- glm(compression_ratio ~ algo*(format + size + entropy)-(format + size + entropy), data=data, family=quasi(link = "log"))
+summary(all_glm)
+```
+
+```{r}
+exp(coef(all_glm))
+```
+
+The reference intercept gives the expected value of compression ratio for a file compressed with algorithm in Huffman coding, 
+type in video, format in flv, size equals to 0 and entropy equals to 0, which is 4.5721892. 
+Change the format to mp4, the compression ratio will increase by 1.0004286 times.
+Change the type from video to image, the format to jpg, the compression ratio will increase by 1.0015740 times. Change the format to png, the compression ratio will increase by 1.0012430 times.
+Change the type from video to text, the format to pdf, the compression ratio will decraese by 0.9871053 times. Change the format to txt, the compression ratio will decraese by 0.9042458 times.
+Increase the size by 1 B, the compression ratio will increase by 1.0000001 times; increase the entropy by 1 bit, the compression ratio will decrease by 0.8262218 times.
+
+Switch to the LZW algorithm, the compression ratio will decrease by a factor of 0.4133313.
+Change the format to mp4, the compression ratio will increase by a factor of 1.0045589.
+Change the type from video to image, the format to jpg, the compression ratio will increase by a factor of 1.0209068. Change the format to png, the compression ratio will increase by a factor of 1.0462732.
+Change the type from video to text, the format to pdf, the compression ratio will increase by a factor of 1.1691802. Change the format to txt, the compression ratio will increase by a factor of 2.4763554.
+Increase the size by 1 B, the compression ratio will increase by 1.0000032; increase the entropy by 1 bit, the compression ratio will decrease by a factor of 0.9271369.

@@ -1,0 +1,148 @@
+---
+output:
+  html_document: default
+  pdf_document: default
+---
+```{r}
+# load the csv
+data <- read.csv("output_result.csv")
+```
+
+```{r}
+# print data column names
+names(data)
+```
+    
+```{r}
+data$algo <- factor(data$algo)
+data$type <- factor(data$type)
+data$format <- factor(data$format)
+```
+
+```{r}
+library(nortest)
+check_lm_normality <- function(lm_model){
+  par(mfrow=c(1,2))
+  qqnorm(residuals(lm_model));qqline(residuals(lm_model)); 
+  plot(fitted(lm_model), residuals(lm_model))
+  # ks_test_result <- ks.test(residuals(lm_model), "pnorm")
+  # return(ks_test_result)
+  ad_test_result <- ad.test(residuals(lm_model))
+  return(ad_test_result)
+}
+```
+
+```{r}
+check_data_normality <- function(data){
+  par(mfrow=c(1,2))
+  qqnorm(data);qqline(data); 
+  plot(data)
+  ad_test_result <- ad.test(data)
+  return(ad_test_result)
+}
+```
+### Interaction
+```{r}
+interaction_lm <- lm(compression_time ~ algo*(type+format+size+entropy), data=data)
+drop1(interaction_lm, test="F")
+```
+
+
+### algo
+
+```{r}
+lzw_data <- subset(data, algo == "lzw")
+huffman_data <- subset(data, algo == "huffman")
+
+
+check_data_normality(lzw_data$compression_time)
+check_data_normality(huffman_data$compression_time)
+```
+
+```{r}
+wilcox.test(lzw_data$compression_time, huffman_data$compression_time)
+```
+We use Wilcos test, it shows the compression ratio of LZW is significantly different than Huffman coding.
+
+
+### type
+
+```{r}
+type_lm <- lm(compression_time ~ type+algo:type, data=data)
+check_lm_normality(type_lm)
+```
+
+```{r}
+library(ARTool)
+type_artm <- art(compression_time ~ type*algo, data=data)
+anova(type_artm)
+```
+
+```{r}
+art.con(type_artm, "type")
+```
+
+### format
+
+```{r}
+format_lm <- lm(compression_time ~ format+format:algo, data=data)
+check_lm_normality(format_lm)
+```
+same
+```{r}
+format_artm <- art(compression_time ~ format*algo, data=data)
+anova(format_artm)
+```
+same
+```{r}
+art.con(format_artm, "format")
+```
+
+### size
+```{r}
+size_lm <- lm(compression_time ~ size+size:algo, data=data)
+check_lm_normality(size_lm)
+```
+  
+```{r}  
+cor.test(data$compression_time, data$size, method="kendall")
+```
+
+### entropy
+```{r}
+entropy_lm <- lm(compression_time ~ entropy+entropy:algo, data=data)
+check_lm_normality(entropy_lm)
+```
+  
+```{r}  
+cor.test(data$compression_time, data$entropy, method="kendall")
+```
+
+### Interaction
+```{r}
+all_lm <- lm(compression_time ~ algo*(format + size + entropy)-(format + size + entropy), data=data)
+drop1(all_lm, test="F")
+check_data_normality(all_lm$residuals)
+```
+
+```{r}
+all_glm <- glm(compression_time ~ algo*(format + size + entropy)-(format + size + entropy), data=data, family=quasipoisson(link="log"))
+summary(all_glm)
+```
+
+
+```{r}
+exp(coef(all_glm))
+```
+The reference intercept gives the expected value of compression time for a file compressed with algorithm in Huffman coding, 
+type in video, format in flv, size equals to 0 and entropy equals to 0, which is 9.741808e-04. 
+Change the format to mp4, the compression  will increase by 1.061703 times.
+Change the type from video to image, the format to jpg, the compression  will increase by 1.309448 times. Change the format to png, the compression  will increase by 1.338752 times.
+Change the type from video to text, the format to pdf, the compression  will increas by 1.150028 times. Change the format to txt, the compression  will increase by 2.363867e+01 times.
+Increase the size by 1 B, the compression  will increase by 1.000028 times; increase the entropy by 1 bit, the compression  will increase by 2.700506 times.
+
+Switch to the LZW algorithm, the compression  will increase by a factor of 5.976163.
+Change the format to mp4, the compression  will increase by a factor of 1.061703.
+Change the type from video to image, the format to jpg, the compression  will increase by a factor of 1.225860 Change the format to png, the compression  will increase by a factor of 1.279135.
+Change the type from video to text, the format to pdf, the compression  will increase by a factor of 1.150028. Change the format to txt, the compression  will increase by a factor of 1.640929.
+Increase the size by 1 B, the compression  will increase by 1.000027; increase the entropy by 1 bit, the compression  will increase by a factor of 2.604329.
