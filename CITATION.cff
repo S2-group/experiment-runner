@@ -1,0 +1,24 @@
+cff-version: 1.2.0
+title: Experiment Runner
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - name: S2 Group
+    address: De Boelelaan 1111
+    city: Amsterdam
+    post-code: 1081 HV
+    country: NL
+    website: 'https://s2group.cs.vu.nl/'
+repository-code: 'https://github.com/s2-group/experiment-runner/'
+abstract: >-
+  Experiment Runner is a generic framework to automatically
+  execute measurement-based experiments on any platform. The
+  experiments are user-defined, can be completely
+  customized, and expressed in python code!
+keywords:
+  - experimentation
+  - empirical
+  - empirical-software-engineering
+license: MIT
