@@ -61,6 +61,7 @@ class RunnerConfig:
                 {factor1: ['example_treatment1']},                   # all runs having treatment "example_treatment1" will be excluded
                 {factor1: ['example_treatment2'], factor2: [True]},  # all runs having the combination ("example_treatment2", True) will be excluded
             ],
+            repetitions = 3,
             data_columns=['avg_cpu', 'avg_mem']
         )
         return self.run_table_model

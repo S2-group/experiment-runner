@@ -12,6 +12,7 @@ class RunTableModel:
     def __init__(self,
                  factors: List[FactorModel],
                  exclude_variations: List[Dict[FactorModel, List[SupportsStr]]] = None,
+                 repetitions: int = 1,
                  data_columns: List[str] = None,
                  shuffle: bool = False
                  ):
@@ -19,6 +20,9 @@ class RunTableModel:
             exclude_variations = {}
         if data_columns is None:
             data_columns = []
+
+        if repetitions < 1:
+            raise BaseError("Negative number of repetitions detected!")
 
         if len(set([factor.factor_name for factor in factors])) != len(factors):
             raise BaseError("Duplicate factor name detected!")
@@ -28,6 +32,7 @@ class RunTableModel:
 
         self.__factors = factors
         self.__exclude_variations = exclude_variations
+        self.__repetitions = repetitions
         self.__data_columns = data_columns
         self.__shuffle = shuffle
 
@@ -76,16 +81,18 @@ class RunTableModel:
                 column_names.append(data_column)
 
         experiment_run_table = []
-        for i, combo in enumerate(filtered_list):
-            row_list = list(combo)
-            row_list.insert(0, f'run_{i}')  # __run_id
-            row_list.insert(1, RunProgress.TODO)  # __done
+        for j in range(self.__repetitions):
+            for i, combo in enumerate(filtered_list):
+                row_list = list(combo)
+                row_list.insert(0, f'run_{i}_repetition_{j}')  # __run_id
+                row_list.insert(1, RunProgress.TODO)  # __done
 
-            if self.__data_columns:
-                for _ in self.__data_columns:
-                    row_list.append(" ")
-            experiment_run_table.append(dict(zip(column_names, row_list)))
+                if self.__data_columns:
+                    for _ in self.__data_columns:
+                        row_list.append(" ")
+                experiment_run_table.append(dict(zip(column_names, row_list)))
 
         if self.__shuffle:
             random.shuffle(experiment_run_table)
         return experiment_run_table
+
