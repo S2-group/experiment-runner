@@ -22,8 +22,8 @@ pip install codecarbon
 To simply measure CO2 emissions (kg) and total energy consumed (kWh) and append them as data columns, use the following snippet:
 
 ```python
-from Plugins import CodecarbonWrapper
-from Plugins.CodecarbonWrapper import DataColumns as CCDataCols
+from Plugins.Profilers import CodecarbonWrapper
+from Plugins.Profilers.CodecarbonWrapper import DataColumns as CCDataCols
 
 @CodecarbonWrapper.emission_tracker(
     data_columns=[CCDataCols.EMISSIONS, CCDataCols.ENERGY_CONSUMED],
@@ -38,8 +38,8 @@ This will add `codecarbon__emissions` and `codecarbon__energy_consumed` data col
 For a more fine-grained approach, the above snippet is equivalent to the following:
 
 ```python
-from Plugins import CodecarbonWrapper
-from Plugins.CodecarbonWrapper import DataColumns as CCDataCols
+from Plugins.Profilers import CodecarbonWrapper
+from Plugins.Profilers.CodecarbonWrapper import DataColumns as CCDataCols
 
 class RunnerConfig:
 

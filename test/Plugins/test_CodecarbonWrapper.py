@@ -10,8 +10,8 @@ from ConfigValidator.Config.Models.RunnerContext import RunnerContext
 from ConfigValidator.Config.RunnerConfig import RunnerConfig
 from ProgressManager.Output.OutputProcedure import OutputProcedure as output
 
-from Plugins import CodecarbonWrapper
-from Plugins.CodecarbonWrapper import DataColumns as CCDataCols
+from Plugins.Profilers import CodecarbonWrapper
+from Plugins.Profilers.CodecarbonWrapper import DataColumns as CCDataCols
 
 
 class TestEmissionTrackerIndividual(unittest.TestCase):
