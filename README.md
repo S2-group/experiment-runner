@@ -74,50 +74,5 @@ python experiment-runner/ <MyRunnerConfig.py>
 
 The results of the experiment will be stored in the directory `RunnerConfig.results_output_path/RunnerConfig.name` as defined by your config variables.
 
-### Events
+**More information about the profilers and use cases can be found in the [Wiki tab](https://github.com/S2-group/experiment-runner/wiki).**
 
-When a user experiment is run, the following list of events are raised in order automatically by Experiment Runner:
-
-- `BEFORE_EXPERIMENT` - Invoked only once.
-- For each variation, the following events are raised in order:
-  1. `BEFORE_RUN` Invoked before each variation
-  2. `START_RUN`
-  3. `START_MEASUREMENT`
-  4. `INTERACT`
-  5. `CONTINUE` - Only to be used by `OperationType.SEMI` configs. (Not automatically subscribed to by the generated config.)
-  6. `STOP_MEASUREMENT`
-  7. `STOP_RUN`
-  8. `POPULATE_RUN_DATA`
-  9. Wait for `RunnerConfig.time_between_runs_in_ms` milliseconds
-- `AFTER_EXPERIMENT` - Invoked only once.
-
-*TODO: Add visualization similar to [robot-runner timeline of events](documentation/ICSE_2021.pdf)*
-
-Variations are automatically created by the Experiment Runner in accordance to the user-defined run table (Factors, Treatment levels, and variation exclusions).
-
-Further detailed description of the events and their expected callback behavior can be found in the generated config. One thing to notice in the config is that, each callback function that is associated with a variation, accepts a `context: RunnerContext` parameter that describes the current variation.
-
-## Internal Details
-
-The framework offers an automation of the infrastructure overhead for measurement-based empirical experiments, as a consequence of its design, produced by the following **design drivers**:
-
-- **User Authority**: Give the user full authority over the experiment execution in the Python-based configuration file.
-- **Focus on Orchestration**: Orchestrate the experiment on the basis of *events*. These events are characterized by their *moment of execution* in any experiment.
-- **Focus on Supporting Infrastructure**: Offer the user all, potentially necessary, supporting features (e.g. factors and treatment levels).
-
-Experiment Runner consists of the following **components**:
-
-- **Experiment orchestrator**: Is in charge of executing the whole experiment according to the experiment configuration provided by the user.
-- **Event manager**: Provides the user with subscribable events, to which callback methods can be set, which are called at the appropriate time by the Experiment Orchestrator.
-- **Progress manager**: Keeps track of the execution of each run of the experiment.
-- **Config Validator**: Provides a validation of a user's configuration file and checks system readiness.
-
-*TODO: Add visualization similar to [robot-runner overview](documentation/overview.png)*
-
-When Experiment Runner is passed a user-defined experiment config via command line arguments, it will:
-
-- Validate the config
-- Output the config's values as read by Experiment Runner in the console for user validation
-- Create the experiment folder
-- Create the run table (.csv), and persist it in the experiment folder
-- Execute the experiment on a per-variation basis, going over each variation with its specified treatments in the run table.
