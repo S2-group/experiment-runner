@@ -58,10 +58,10 @@ class RunnerConfig:
     def create_run_table_model(self) -> RunTableModel:
         """Create and return the run_table model here. A run_table is a List (rows) of tuples (columns),
         representing each run performed"""
-        #sampling_factor = FactorModel("sampling", [1, 10, 50, 100, 200, 500, 1000])
+        sampling_factor = FactorModel("sampling", [10, 50, 100, 200, 500, 1000])
         self.run_table_model = RunTableModel(
-         #   factors = [sampling_factor],
-            data_columns=['avg_cpu', 'total_energy']
+            factors = [sampling_factor],
+            data_columns=['avg_cpu_usage_0', 'package_energy']
         )
         return self.run_table_model
 
@@ -93,11 +93,18 @@ class RunnerConfig:
 
     def start_measurement(self, context: RunnerContext) -> None:
         """Perform any activity required for starting measurements."""
+        sampling_interval = context.run_variation['sampling']
 
-        profiler_cmd = f'sudo energibridge -o {context.run_dir / "energibridge.csv"} --summary python primer.py'
+        profiler_cmd = f'sudo energibridge \
+                        --interval {sampling_interval} \
+                        --max-execution 20 \
+                        --output {context.run_dir / "energibridge.csv"} \
+                        --summary \
+                        python3 examples/energibridge-profiling/primer.py'
 
-        time.sleep(1) # allow the process to run a little before measuring
-        self.profiler = subprocess.Popen(shlex.split(profiler_cmd))
+        #time.sleep(1) # allow the process to run a little before measuring
+        energibridge_log = open(f'{context.run_dir}/energibridge.log', 'w')
+        self.profiler = subprocess.Popen(shlex.split(profiler_cmd), stdout=energibridge_log)
 
     def interact(self, context: RunnerContext) -> None:
         """Perform any interaction with the running target system here, or block here until the target finishes."""
@@ -110,15 +117,16 @@ class RunnerConfig:
     def stop_measurement(self, context: RunnerContext) -> None:
         """Perform any activity here required for stopping measurements."""
 
-        os.kill(self.profiler.pid, signal.SIGINT) # graceful shutdown of energibridge
+        #os.kill(self.profiler.pid, signal.SIGINT) # graceful shutdown of energibridge
         self.profiler.wait()
 
     def stop_run(self, context: RunnerContext) -> None:
         """Perform any activity here required for stopping the run.
         Activities after stopping the run should also be performed here."""
         
-        self.target.kill()
-        self.target.wait()
+        #self.target.kill()
+        #self.target.wait()
+        pass
     
     def populate_run_data(self, context: RunnerContext) -> Optional[Dict[str, Any]]:
         """Parse and process any measurement data here.
@@ -127,10 +135,10 @@ class RunnerConfig:
 
         # energibridge.csv - Power consumption of the whole system
         # energibridge.csv-PID.csv - Power consumption of that specific process
-        df = pd.read_csv(context.run_dir / f"energibridge.csv-{self.target.pid}.csv")
+        df = pd.read_csv(context.run_dir / f"energibridge.csv")
         run_data = {
-            'avg_cpu': round(df['CPU Utilization'].sum(), 3),
-            'total_energy': round(df['CPU Power'].sum(), 3),
+            'avg_cpu_usage_0': round(df['CPU_USAGE_0'].sum(), 3),
+            'package_energy': round(df['PACKAGE_ENERGY (J)'].sum(), 3),
         }
         return run_data
 
