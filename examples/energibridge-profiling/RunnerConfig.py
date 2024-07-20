@@ -61,7 +61,9 @@ class RunnerConfig:
         sampling_factor = FactorModel("sampling", [10, 50, 100, 200, 500, 1000])
         self.run_table_model = RunTableModel(
             factors = [sampling_factor],
-            data_columns=['avg_cpu_usage_0', 'package_energy']
+            data_columns=['dram_energy', 'package_energy',
+                          'pp0_energy', 'pp1_energy']
+
         )
         return self.run_table_model
 
@@ -79,17 +81,7 @@ class RunnerConfig:
         """Perform any activity required for starting the run here.
         For example, starting the target system to measure.
         Activities after starting the run should also be performed here."""
-        
-        #cpu_limit = context.run_variation['cpu_limit']
-
-        # start the target
-        #self.target = subprocess.Popen(['python', './primer.py'],
-        #    stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=self.ROOT_DIR,
-        #)
-
-        # Configure the environment based on the current variation
-        #subprocess.check_call(shlex.split(f'cpulimit -b -p {self.target.pid} --limit {cpu_limit}'))
-        
+        pass
 
     def start_measurement(self, context: RunnerContext) -> None:
         """Perform any activity required for starting measurements."""
@@ -116,16 +108,11 @@ class RunnerConfig:
 
     def stop_measurement(self, context: RunnerContext) -> None:
         """Perform any activity here required for stopping measurements."""
-
-        #os.kill(self.profiler.pid, signal.SIGINT) # graceful shutdown of energibridge
         self.profiler.wait()
 
     def stop_run(self, context: RunnerContext) -> None:
         """Perform any activity here required for stopping the run.
         Activities after stopping the run should also be performed here."""
-        
-        #self.target.kill()
-        #self.target.wait()
         pass
     
     def populate_run_data(self, context: RunnerContext) -> Optional[Dict[str, Any]]:
@@ -134,11 +121,12 @@ class RunnerConfig:
         Returns a dictionary with keys `self.run_table_model.data_columns` and their values populated"""
 
         # energibridge.csv - Power consumption of the whole system
-        # energibridge.csv-PID.csv - Power consumption of that specific process
         df = pd.read_csv(context.run_dir / f"energibridge.csv")
         run_data = {
-            'avg_cpu_usage_0': round(df['CPU_USAGE_0'].sum(), 3),
-            'package_energy': round(df['PACKAGE_ENERGY (J)'].sum(), 3),
+                'dram_energy'   : round(df['DRAM_ENERGY (J)'].sum(), 3),
+                'package_energy': round(df['PACKAGE_ENERGY (J)'].sum(), 3),
+                'pp0_energy'    : round(df['PP0_ENERGY (J)'].sum(), 3),
+                'pp1_energy'    : round(df['PP1_ENERGY (J)'].sum(), 3),
         }
         return run_data
 
