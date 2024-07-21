@@ -10,14 +10,12 @@ from typing import Dict, List, Any, Optional
 from pathlib import Path
 from os.path import dirname, realpath
 
-from Plugins.Profilers import CodecarbonWrapper
-from Plugins.Profilers.CodecarbonWrapper import DataColumns as CCDataCols
-
-@CodecarbonWrapper.emission_tracker(
-    data_columns=[CCDataCols.EMISSIONS, CCDataCols.ENERGY_CONSUMED],
-    country_iso_code="NLD" # your country code
-)
-
+import os
+import signal
+import pandas as pd
+import time
+import subprocess
+import shlex
 
 class RunnerConfig:
     ROOT_DIR = Path(dirname(realpath(__file__)))
@@ -55,77 +53,87 @@ class RunnerConfig:
             (RunnerEvents.AFTER_EXPERIMENT , self.after_experiment )
         ])
         self.run_table_model = None  # Initialized later
-
         output.console_log("Custom config loaded")
 
     def create_run_table_model(self) -> RunTableModel:
         """Create and return the run_table model here. A run_table is a List (rows) of tuples (columns),
         representing each run performed"""
-        factor1 = FactorModel("example_factor1", ['example_treatment1', 'example_treatment2', 'example_treatment3'])
-        factor2 = FactorModel("example_factor2", [True, False])
+        sampling_factor = FactorModel("sampling", [10, 50, 100, 200, 500, 1000])
         self.run_table_model = RunTableModel(
-            factors=[factor1, factor2],
-            exclude_variations=[
-                {factor1: ['example_treatment1']},                   # all runs having treatment "example_treatment1" will be excluded
-                {factor1: ['example_treatment2'], factor2: [True]},  # all runs having the combination ("example_treatment2", True) will be excluded
-            ],
-            repetitions = 3,
-            data_columns=['avg_cpu', 'avg_mem']
+            factors = [sampling_factor],
+            data_columns=['dram_energy', 'package_energy',
+                          'pp0_energy', 'pp1_energy']
+
         )
         return self.run_table_model
 
     def before_experiment(self) -> None:
         """Perform any activity required before starting the experiment here
         Invoked only once during the lifetime of the program."""
-
-        output.console_log("Config.before_experiment() called!")
+        pass
 
     def before_run(self) -> None:
         """Perform any activity required before starting a run.
         No context is available here as the run is not yet active (BEFORE RUN)"""
-
-        output.console_log("Config.before_run() called!")
+        pass
 
     def start_run(self, context: RunnerContext) -> None:
         """Perform any activity required for starting the run here.
         For example, starting the target system to measure.
         Activities after starting the run should also be performed here."""
-
-        output.console_log("Config.start_run() called!")
+        pass
 
     def start_measurement(self, context: RunnerContext) -> None:
         """Perform any activity required for starting measurements."""
-        output.console_log("Config.start_measurement() called!")
+        sampling_interval = context.run_variation['sampling']
+
+        profiler_cmd = f'sudo energibridge \
+                        --interval {sampling_interval} \
+                        --max-execution 20 \
+                        --output {context.run_dir / "energibridge.csv"} \
+                        --summary \
+                        python3 examples/energibridge-profiling/primer.py'
+
+        #time.sleep(1) # allow the process to run a little before measuring
+        energibridge_log = open(f'{context.run_dir}/energibridge.log', 'w')
+        self.profiler = subprocess.Popen(shlex.split(profiler_cmd), stdout=energibridge_log)
 
     def interact(self, context: RunnerContext) -> None:
         """Perform any interaction with the running target system here, or block here until the target finishes."""
 
-        output.console_log("Config.interact() called!")
+        # No interaction. We just run it for XX seconds.
+        # Another example would be to wait for the target to finish, e.g. via `self.target.wait()`
+        output.console_log("Running program for 20 seconds")
+        time.sleep(20)
 
     def stop_measurement(self, context: RunnerContext) -> None:
         """Perform any activity here required for stopping measurements."""
-
-        output.console_log("Config.stop_measurement called!")
+        self.profiler.wait()
 
     def stop_run(self, context: RunnerContext) -> None:
         """Perform any activity here required for stopping the run.
         Activities after stopping the run should also be performed here."""
-
-        output.console_log("Config.stop_run() called!")
-
+        pass
+    
     def populate_run_data(self, context: RunnerContext) -> Optional[Dict[str, Any]]:
         """Parse and process any measurement data here.
         You can also store the raw measurement data under `context.run_dir`
         Returns a dictionary with keys `self.run_table_model.data_columns` and their values populated"""
 
-        output.console_log("Config.populate_run_data() called!")
-        return None
+        # energibridge.csv - Power consumption of the whole system
+        df = pd.read_csv(context.run_dir / f"energibridge.csv")
+        run_data = {
+                'dram_energy'   : round(df['DRAM_ENERGY (J)'].sum(), 3),
+                'package_energy': round(df['PACKAGE_ENERGY (J)'].sum(), 3),
+                'pp0_energy'    : round(df['PP0_ENERGY (J)'].sum(), 3),
+                'pp1_energy'    : round(df['PP1_ENERGY (J)'].sum(), 3),
+        }
+        return run_data
 
     def after_experiment(self) -> None:
         """Perform any activity required after stopping the experiment here
         Invoked only once during the lifetime of the program."""
-
-        output.console_log("Config.after_experiment() called!")
+        pass
 
     # ================================ DO NOT ALTER BELOW THIS LINE ================================
     experiment_path:            Path             = None
