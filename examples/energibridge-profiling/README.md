@@ -25,3 +25,6 @@ python experiment-runner/ examples/energibridge-profiling/RunnerConfig.py
 
 The results are generated in the `examples/energibridge-profiling/experiments` folder.
 
+**!!! WARNING !!!**: COLUMNS IN THE `energibridge.csv` FILES CAN BE DIFFERENT ACROSS MACHINES.
+ADJUST THE DATAFRAME COLUMN NAMES ACCORDINGLY.
+
