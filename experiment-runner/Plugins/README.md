@@ -106,3 +106,31 @@ class RunnerConfig:
         # prase lines and populate `run_data`
         return run_data
 ```
+
+---
+
+## PicoCM3.py
+
+### Overview 
+This plugin implements a python wrapper for the C driver and interface for the PicoLog CM3 device. It facilitates power measurements from up to three different sources using clamps.
+
+### Requirements
+* (Hardware) PicoLog CM3 device (https://www.picotech.com/download/manuals/PicoLogCM3CurrentDataLoggerUsersGuide.pdf)
+
+* Requires the picosdk drivers to be installed. Instructions found at https://www.picotech.com/downloads/linux) see the section on "installing drivers only".
+
+* The LD_LIBRARY_PATH environment variable must be set to the location of the driver (/opt/picoscope/lib on linux by default)
+
+* The python numpy package
+
+### Usage
+
+### Known issues
+* After the device has been opened, changing channel settings for a second time will result in some systems freezing, requiring a restart.
+
+### Side Notes
+* The libpswrappers package does not provide a python API for the CM3, we provide this
+
+* The linux drivers are by default available only for Ubuntu or openSUSE, after the repository has been added.
+
+* While the PicoLog CM3 does support connection over ethernet, we have not implemented this functionaliy into experiment runner.
