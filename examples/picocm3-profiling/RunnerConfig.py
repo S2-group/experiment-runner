@@ -6,23 +6,28 @@ from ConfigValidator.Config.Models.RunnerContext import RunnerContext
 from ConfigValidator.Config.Models.OperationType import OperationType
 from ProgressManager.Output.OutputProcedure import OutputProcedure as output
 
-from typing import Dict, List, Any, Optional
+from typing import Dict, Any, Optional
 from pathlib import Path
 from os.path import dirname, realpath
 
-import os
-import signal
-import pandas as pd
 import time
 import subprocess
 import shlex
+
+from Plugins.Profilers.PicoCM3 import PicoCM3, CM3DataTypes, CM3Channels
+
+# TODO
+# Finish parsing / averaging the values to place in the results table
+# Finish the documentation in 2 places
+# Test the implementation
+# Write actual test code to test the implementaiton
 
 class RunnerConfig:
     ROOT_DIR = Path(dirname(realpath(__file__)))
 
     # ================================ USER SPECIFIC CONFIG ================================
     """The name of the experiment."""
-    name:                       str             = "new_picocm3_experiment"
+    name:                       str             = "new_runner_experiment"
 
     """The path in which Experiment Runner will create a folder with the name `self.name`, in order to store the
     results from this experiment. (Path does not need to exist - it will be created if necessary.)
@@ -52,25 +57,34 @@ class RunnerConfig:
             (RunnerEvents.POPULATE_RUN_DATA, self.populate_run_data),
             (RunnerEvents.AFTER_EXPERIMENT , self.after_experiment )
         ])
+        
+        self.latest_measurement = None
         self.run_table_model = None  # Initialized later
         output.console_log("Custom config loaded")
 
     def create_run_table_model(self) -> RunTableModel:
         """Create and return the run_table model here. A run_table is a List (rows) of tuples (columns),
         representing each run performed"""
-        sampling_factor = FactorModel("sampling", [10, 50, 100, 200, 500, 1000])
-        self.run_table_model = RunTableModel(
-            factors = [sampling_factor],
-            data_columns=['dram_energy', 'package_energy',
-                          'pp0_energy', 'pp1_energy']
+        workers_factor = FactorModel("num_workers", [1, 2, 3, 4])
+        write_factor = FactorModel("write_size", [256, 1024, 2048, 4096])
 
-        )
+        self.run_table_model = RunTableModel(
+            factors = [workers_factor, write_factor],
+            data_columns=['timestamp', 'channel_1(A)', 'channel_2(off)', 'channel_3(off)']) # Channel 1 is in Amps
+
         return self.run_table_model
 
     def before_experiment(self) -> None:
         """Perform any activity required before starting the experiment here
         Invoked only once during the lifetime of the program."""
-        pass
+
+        # Setup the picolog cm3 here (the parameters passed are also the default)
+        self.meter = PicoCM3(sample_frequency   = 1000, # Sample the CM3 every second
+                             mains_setting      = 0,    # Account for 50hz mains frequency
+                             # Which channels are enabled in what mode
+                             channel_settings   = { CM3Channels.PLCM3_CHANNEL_1: CM3DataTypes.PLCM3_1_MILLIVOLT,
+                                                    CM3Channels.PLCM3_CHANNEL_2: CM3DataTypes.PLCM3_OFF,
+                                                    CM3Channels.PLCM3_CHANNEL_3: CM3DataTypes.PLCM3_OFF})
 
     def before_run(self) -> None:
         """Perform any activity required before starting a run.
@@ -81,34 +95,43 @@ class RunnerConfig:
         """Perform any activity required for starting the run here.
         For example, starting the target system to measure.
         Activities after starting the run should also be performed here."""
-        pass
+        
+        num_workers = context.run_variation['num_workers']
+        write_size = context.run_variation['write_size']
+
+        # Start stress-ng
+        stress_cmd = f"sudo stress-ng \
+                    --hdd {num_workers} \
+                    --hdd-write-size {write_size} \
+                    --hdd-ops 1000000 \
+                    --hdd-dev /dev/sda1 \
+                    --timeout 60s \
+                    --metrics-brief"
+
+        stress_log = open(f'{context.run_dir}/stress-ng-log.log', 'w')
+        self.stress_ng = subprocess.Popen(shlex.split(stress_cmd), stdout=stress_log)
 
     def start_measurement(self, context: RunnerContext) -> None:
         """Perform any activity required for starting measurements."""
-        sampling_interval = context.run_variation['sampling']
-
-        profiler_cmd = f'sudo energibridge \
-                        --interval {sampling_interval} \
-                        --max-execution 20 \
-                        --output {context.run_dir / "energibridge.csv"} \
-                        --summary \
-                        python3 examples/energibridge-profiling/primer.py'
-
-        #time.sleep(1) # allow the process to run a little before measuring
-        energibridge_log = open(f'{context.run_dir}/energibridge.log', 'w')
-        self.profiler = subprocess.Popen(shlex.split(profiler_cmd), stdout=energibridge_log)
-
+        
+        num_workers = context.run_variation['num_workers']
+        write_size = context.run_variation['write_size']
+        
+        # Start the picologs measurements here, create a unique log file for each
+        self.latest_log = str(context.run_dir.resolve() / f'pico_run_{num_workers}_{write_size}.log')
+        self.latest_measurement = self.meter.log(lambda: self.stress_ng.poll() != None, self.latest_log)
+    
     def interact(self, context: RunnerContext) -> None:
         """Perform any interaction with the running target system here, or block here until the target finishes."""
 
-        # No interaction. We just run it for XX seconds.
-        # Another example would be to wait for the target to finish, e.g. via `self.target.wait()`
-        output.console_log("Running program for 20 seconds")
-        time.sleep(20)
+        # Wait the maximum timeout for stress-ng to finish or time.sleep(60)
+        self.stress_ng.wait() 
 
     def stop_measurement(self, context: RunnerContext) -> None:
         """Perform any activity here required for stopping measurements."""
-        self.profiler.wait()
+        
+        # Wait for stress-ng to finish
+        self.stress_ng.wait()
 
     def stop_run(self, context: RunnerContext) -> None:
         """Perform any activity here required for stopping the run.
@@ -120,14 +143,29 @@ class RunnerConfig:
         You can also store the raw measurement data under `context.run_dir`
         Returns a dictionary with keys `self.run_table_model.data_columns` and their values populated"""
 
-        # energibridge.csv - Power consumption of the whole system
-        df = pd.read_csv(context.run_dir / f"energibridge.csv")
-        run_data = {
-                'dram_energy'   : round(df['DRAM_ENERGY (J)'].sum(), 3),
-                'package_energy': round(df['PACKAGE_ENERGY (J)'].sum(), 3),
-                'pp0_energy'    : round(df['PP0_ENERGY (J)'].sum(), 3),
-                'pp1_energy'    : round(df['PP1_ENERGY (J)'].sum(), 3),
-        }
+        run_data = {k: [] for k in self.run_table_model.data_columns}
+
+        # Pass data through variables
+        if self.latest_measurement != {}:
+            for k, v in self.latest_measurement.items():
+                    run_data['timestamp'].append(k)
+                    run_data['channel_1(A)'].append(v[0][0])
+                    run_data['channel_2(off)'].append(v[1][0])
+                    run_data['channel_3(off)'].append(v[2][0])
+
+        # Or through a log file
+        else:
+            with open(self.latest_log) as f:
+                lines = f.readlines()
+
+                for line in lines:
+                    channel_vals = line.split(",")
+                    
+                    run_data['timestamp'].append(channel_vals[0])
+                    run_data['channel_1(A)'].append(channel_vals[1].split(" ")[0])
+                    run_data['channel_2(off)'].append(channel_vals[2].split(" ")[0])
+                    run_data['channel_3(off)'].append(channel_vals[3].split(" ")[0])
+
         return run_data
 
     def after_experiment(self) -> None:
