@@ -1,8 +1,8 @@
-import picosdk.library
-from picosdk.constants import make_enum
+import Plugins.Profilers.picosdk.library as library
+from Plugins.Profilers.picosdk.constants import make_enum
 from ctypes import c_uint32, c_void_p, c_int16, c_uint16
 
-class Plcm3lib(picosdk.library.Library):
+class Plcm3lib(library.Library):
     def __init__(self):
         super(Plcm3lib, self).__init__("plcm3")
 
@@ -24,7 +24,8 @@ plcm3.PICO_INFO = {
     "PICO_VARIANT_INFO" : 3,
     "PICO_BATCH_AND_SERIAL" : 4,
     "PICO_CAL_DATE" : 5,
-    "PICO_KERNAL_VERSION" : 6,
+    "PICO_KERNEL_VERSION" : 6,
+    "PICO_MAC_ADDRESS" : 11
 }
 
 plcm3.PLCM3DataTypes = make_enum([

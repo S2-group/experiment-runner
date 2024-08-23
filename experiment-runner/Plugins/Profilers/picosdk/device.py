@@ -11,7 +11,7 @@ import collections
 import numpy
 import math
 import time
-from picosdk.errors import DeviceCannotSegmentMemoryError, InvalidTimebaseError, ClosedDeviceError, \
+from Plugins.Profilers.picosdk.errors import DeviceCannotSegmentMemoryError, InvalidTimebaseError, ClosedDeviceError, \
     NoChannelsEnabledError, NoValidTimebaseForOptionsError
 
 

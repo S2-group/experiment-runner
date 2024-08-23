@@ -3,8 +3,8 @@
 #
 from __future__ import division
 import numpy as np
-from picosdk.constants import PICO_STATUS, PICO_STATUS_LOOKUP
-from picosdk.errors import PicoSDKCtypesError
+from Plugins.Profilers.picosdk.constants import PICO_STATUS, PICO_STATUS_LOOKUP
+from Plugins.Profilers.picosdk.errors import PicoSDKCtypesError
 
 
 def adc2mV(bufferADC, range, maxADC):

@@ -1,5 +1,6 @@
 .idea
 .venv
+.vagrant
 */__pycache__/*
 examples/linux-ps-profiling/primer
 examples/linux-powerjoular-profiling/primer
@@ -15,3 +16,5 @@ pycharm-interpreter.sh
 python
 
 Session.vim
+
+Vagrantfile

@@ -1,8 +1,8 @@
 #
 # Copyright (C) 2018 Pico Technology Ltd. See LICENSE file for terms.
 #
-from picosdk.errors import DeviceNotFoundError
-from picosdk.plcm3 import plcm3
+from Plugins.Profilers.picosdk.errors import DeviceNotFoundError
+from Plugins.Profilers.picosdk.plcm3 import plcm3
 
 
 # the A drivers are faster to enumerate devices, so search them first.

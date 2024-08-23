@@ -13,15 +13,15 @@ import sys
 from ctypes import c_int16, c_int32, c_uint32, c_float, create_string_buffer, byref
 from ctypes.util import find_library
 import collections
-import picosdk.constants as constants
+import Plugins.Profilers.picosdk.constants as constants
 import numpy
 
-from picosdk.errors import CannotFindPicoSDKError, CannotOpenPicoSDKError, DeviceNotFoundError, \
+from Plugins.Profilers.picosdk.errors import CannotFindPicoSDKError, CannotOpenPicoSDKError, DeviceNotFoundError, \
     ArgumentOutOfRangeError, ValidRangeEnumValueNotValidForThisDevice, DeviceCannotSegmentMemoryError, \
     InvalidMemorySegmentsError, InvalidTimebaseError, InvalidTriggerParameters, InvalidCaptureParameters
 
 
-from picosdk.device import Device
+from Plugins.Profilers.picosdk.device import Device
 
 
 """TimebaseInfo: A type for holding the particulars of a timebase configuration.

@@ -1,5 +1,6 @@
 #!/bin/bash
 
+export PROJECT_DIR=${PROJECT_DIR:=.}
 export PYTHONUNBUFFERED=1
 export PYENV_VIRTUALENV_DISABLE_PROMPT=1
 export PYTHONPATH="$PYTHONPATH:${PROJECT_DIR}/experiment-runner:${PROJECT_DIR}/test-standalone"
@@ -19,6 +20,7 @@ tests=( # TODO: gather_tests recursively
   "${PROJECT_DIR}/test-standalone/core/arbitrary-objects"
   "${PROJECT_DIR}/test-standalone/plugins/CodecarbonWrapper/individual"
   "${PROJECT_DIR}/test-standalone/plugins/CodecarbonWrapper/combined"
+  "${PROJECT_DIR}/test-standalone/plugins/PicoCM3"
 )
 
 echo "CWD: $(pwd)"

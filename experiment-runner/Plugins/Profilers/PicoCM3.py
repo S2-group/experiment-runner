@@ -1,12 +1,13 @@
+from __future__ import annotations
 import ctypes
 import datetime
 import time
 import enum
 from collections.abc import Callable
 
-from picosdk.plcm3 import plcm3
-from picosdk.functions import assert_pico_ok
-from picosdk.constants import PICO_STATUS
+from Plugins.Profilers.picosdk.plcm3 import plcm3
+from Plugins.Profilers.picosdk.functions import assert_pico_ok
+from Plugins.Profilers.picosdk.constants import PICO_STATUS
 
 # Mapping of the PicoLog CM3 enums for convenience
 class CM3DataTypes(enum.Enum):
@@ -26,28 +27,34 @@ class CM3MainsTypes(enum.Enum):
     PLCM3_MAINS_60HZ    = 1
 
 class PicoCM3(object):
-    """An integration of PicoTech CM3 current data logger (https://www.picotech.com/download/manuals/PicoLogCM3CurrentDataLoggerUsersGuide.pdf)"""
+    """An integration of PicoTech CM3 current data logger (https://www.picotech.com/download/manuals/picolog-cm3-data-logger-programmers-guide.pdf)"""
     def __init__(self, sample_frequency: int = None, mains_setting: int = None, channel_settings: dict[int, int] = None):
+        # Some default settings
+        self.handle = None
+        self.sample_frequency    = sample_frequency if sample_frequency != None else 1000   # In ms
+        self.mains_setting       = mains_setting if mains_setting != None else 0            # 50 Hz
+        self.channel_settings    = channel_settings if channel_settings != None else {      # Which channels are enabled in what mode
+            CM3Channels.PLCM3_CHANNEL_1.value: CM3DataTypes.PLCM3_1_MILLIVOLT.value,
+            CM3Channels.PLCM3_CHANNEL_2.value: CM3DataTypes.PLCM3_OFF.value,
+            CM3Channels.PLCM3_CHANNEL_3.value: CM3DataTypes.PLCM3_OFF.value}
+
         # Check that the picolog driver is accessible
         if ctypes.util.find_library("plcm3") is None:
             print("No valid PicoLog CM3 driver could be found, please check LD_LIBRARY_PATH is set properly")
             raise RuntimeError("Driver not available")
 
         # Check if a CM3 device is present
-        if self.list_devices() == "":
+        if self.enumerate_devices() == "":
             print("No valid PicoLog CM3 device could be found, please ensure the device is connected")
             raise RuntimeError("Device not available")
 
-        # Some default settings
-        self.sample_frequency    = sample_frequency if sample_frequency != None else 1000   # In ms
-        self.mains_setting       = mains_setting if mains_setting != None else 0            # 50 Hz
-        self.channel_settings    = channel_settings if channel_settings != None else {      # Which channels are enabled in what mode
-            CM3Channels.PLCM3_CHANNEL_1: CM3DataTypes.PLCM3_1_MILLIVOLT,
-            CM3Channels.PLCM3_CHANNEL_2: CM3DataTypes.PLCM3_OFF,
-            CM3Channels.PLCM3_CHANNEL_3: CM3DataTypes.PLCM3_OFF}
-    
+    # Ensure that 
+    def __del__(self):
+        if self.handle:
+            self.close_device()
+
     # Apply channel and mains settings to the picolog
-    def mode(self, handle):
+    def mode(self):
         # Validate the channel settings
         if len(self.channel_settings.values()) < 3:
             print("All channels should have a setting")
@@ -66,80 +73,76 @@ class PicoCM3(object):
 
         # Apply settings to channels
         for ch in range(plcm3.PLCM3Channels["PLCM3_MAX_CHANNELS"]): 
-            status = plcm3.PLCM3SetChannel(handle, ch+1, self.channel_settings[ch+1])
+            status = plcm3.PLCM3SetChannel(self.handle, ch+1, self.channel_settings[ch+1])
             assert_pico_ok(status)
         
         # Apply mains setting
-        status = plcm3.PLCM3SetMains(handle, ctypes.c_uint16(self.mains_setting))
+        status = plcm3.PLCM3SetMains(self.handle, ctypes.c_uint16(self.mains_setting))
         assert_pico_ok(status)
 
     def log(self, logfile = None, dev = None, timeout: int = 60, finished_fn: Callable[[], bool] = None):
         log_data = {}
         if logfile:
             self.logfile = logfile
-        
-        # Open the device
-        handle = self.open_device()
 
-        # Apply channel and mains settings 
-        self.mode(handle)
-
-        print('Logging started successfully...')
+        print('Logging...')
         timeout_start = time.time()       
         finished_checker = finished_fn if finished_fn != None else lambda: time.time() < timeout_start + timeout
         
         # Ensure the PicoLog always gets closed
-        try:
-            while finished_checker():
-                channel_data = {}
-                # Poll every channel for data
-                for ch in range(plcm3.PLCM3Channels["PLCM3_MAX_CHANNELS"]):  
-                    ch_handle = ctypes.c_uint32(ch+1)
-                    data_handle = ctypes.c_uint32()
-                    status = plcm3.PLCM3GetValue(handle, ch_handle, ctypes.byref(data_handle))
-                    
-                    if status == PICO_STATUS["PICO_NO_SAMPLES_AVAILABLE"]:
-                        channel_data[ch+1] = (0, "")
-                    else:
-                        assert_pico_ok(status)
-                        channel_data[ch+1] = self.apply_scaling(data_handle.value, self.channel_settings[ch+1])
-                   
-                log_data[datetime.datetime.now()] = [channel_data[1], channel_data[2], channel_data[3]]
+        while finished_checker():
+            channel_data = {}
+            # Poll every channel for data
+            for ch in range(plcm3.PLCM3Channels["PLCM3_MAX_CHANNELS"]):  
+                ch_handle = ctypes.c_uint32(ch+1)
+                data_handle = ctypes.c_uint32()
+                status = plcm3.PLCM3GetValue(self.handle, ch_handle, ctypes.byref(data_handle))
+                
+                if status == PICO_STATUS["PICO_NO_SAMPLES_AVAILABLE"]:
+                    channel_data[ch+1] = (0, "")
+                else:
+                    assert_pico_ok(status)
+                    channel_data[ch+1] = self.apply_scaling(data_handle.value, self.channel_settings[ch+1])
+            log_data[datetime.datetime.now().isoformat(" ", "seconds")] = [channel_data[1], channel_data[2], channel_data[3]]
 
-                # Ensure measurement frequency
-                time.sleep(self.sample_frequency/1000)
-        except:
-            print("Error durring PicoLog CM3 data collection")
-        finally:
-            # Close the connection to the unit
-            self.close_device(handle)
+            # Ensure measurement frequency
+            time.sleep(self.sample_frequency/1000)
 
-            # Write all of the data to a log file (if requested)
-            if self.logfile:
-                with open(self.logfile,'w') as f:
-                    for t_stamp, data in log_data.items():
-                        f.write('%s, %.2f %s, %.2f %s, %.2f %s\n' % 
-                                (t_stamp, data[0][0], data[0][1], data[1][0], data[1][1], data[2][0], data[2][1]))
+        # Write all of the data to a log file (if requested)
+        if self.logfile:
+            with open(self.logfile,'w') as f:
+                for t_stamp, data in log_data.items():
+                    f.write('%s,%.2f %s,%.2f %s,%.2f %s\n' % \
+                            (t_stamp, data[0][0], data[0][1], data[1][0], data[1][1], data[2][0], data[2][1]))
         return log_data
     
-    def close_device(self, handle):
-        status = plcm3.PLCM3CloseUnit(handle)
-        assert_pico_ok(status)
+    def close_device(self):
+        if self.handle:
+            status = plcm3.PLCM3CloseUnit(self.handle)
+            assert_pico_ok(status)
+            self.handle = None
+            print("PicoLog CM3 successfully closed...")
 
     def open_device(self, dev=None, verbose=True):
         if dev is not None:
             dev = ctypes.create_string_buffer(dev.encode("utf-8"))
 
         # Open the device
-        handle = ctypes.c_int16()
+        self.handle = ctypes.c_int16()
         status = plcm3.PLCM3OpenUnit(ctypes.byref(self.handle), dev) 
         assert_pico_ok(status)
         
         if verbose:
             print("Device opened: ")
-            self.print_info(handle)
+            self.print_info(self.handle)
 
-        return handle
+        # Apply channel and mains settings 
+        self.mode()
+        
+        # The PicoLog CM3 takes some time to warm up before it will return results
+        time.sleep(5)
+        print("PicoLog CM3 successfully opened...")
+        return self.handle
 
     def enumerate_devices(self):
         details = ctypes.create_string_buffer(255)
@@ -151,26 +154,43 @@ class PicoCM3(object):
 
         return details.value.decode("utf-8")
 
-    def print_info(self):
-        info_strings = ["Driver Version    :", 
-                        "USB Version       :", 
-                        "Hardware Version  :", 
-                        "Variant Info      :", 
-                        "Batch and Serial  :", 
-                        "Calibration Date  :", 
-                        "Kernel Driver Ver.:",
-                        "Mac Address       :"]
+    def print_info(self, handle):
+        info_strings = {"Driver Version    : ": plcm3.PICO_INFO['PICO_DRIVER_VERSION'], 
+                        "USB Version       : ": plcm3.PICO_INFO['PICO_USB_VERSION'], 
+                        "Hardware Version  : ": plcm3.PICO_INFO['PICO_HARDWARE_VERSION'], 
+                        "Variant Info      : ": plcm3.PICO_INFO['PICO_VARIANT_INFO'], 
+                        "Batch and Serial  : ": plcm3.PICO_INFO['PICO_BATCH_AND_SERIAL'], 
+                        "Calibration Date  : ": plcm3.PICO_INFO['PICO_CAL_DATE'], 
+                        "Kernel Driver Ver.: ": plcm3.PICO_INFO['PICO_KERNEL_VERSION'],
+                        "Mac Addres        : ": plcm3.PICO_INFO['PICO_MAC_ADDRESS']}
 
-        for i, s in enumerate(info_strings):
+        for s, id in info_strings.items():
             res_buf = ctypes.create_string_buffer(255)
             required_size = ctypes.c_int16()
 
-            status = plcm3.PLCM3GetUnitInfo(self.handle, res_buf, ctypes.c_int16(255), ctypes.byref(required_size), ctypes.c_uint32(i))
+            status = plcm3.PLCM3GetUnitInfo(handle, res_buf, ctypes.c_int16(255), ctypes.byref(required_size), ctypes.c_uint32(id))
             assert_pico_ok(status)
-            print(f" {s}{repr(res_buf.value).decode("utf-8")}")
+            info_str = res_buf.value.decode("utf-8")
+            print(f" {s}{info_str}")
+    
+    @staticmethod
+    def parse_log(logfile):
+        log_data = {k: [] for k in ['timestamp', 'channel_1', 'channel_2', 'channel_3']}
+
+        with open(logfile) as f:
+            lines = f.readlines()
+            for line in lines:
+                channel_vals = line.split(",")
+                log_data['timestamp'].append(channel_vals[0])
+                log_data['channel_1'].append(float(channel_vals[1].split(" ")[0]))
+                log_data['channel_2'].append(float(channel_vals[2].split(" ")[0]))
+                log_data['channel_3'].append(float(channel_vals[3].split(" ")[0]))
+
+        return log_data
+
 
     # Returns a tuple (scaled_value, unit_string)
-    def apply_scaling(value, channel_mode):
+    def apply_scaling(self, value, channel_mode):
         if channel_mode == plcm3.PLCM3DataTypes["PLCM3_OFF"]:
             return (0, "")
         elif channel_mode == plcm3.PLCM3DataTypes["PLCM3_1_MILLIVOLT"]:
