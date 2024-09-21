@@ -75,7 +75,7 @@ class ConfigValidator:
             config.self_measure = False
 
         if config.self_measure and not hasattr(config, "self_measure_bin"):
-            config.self_measure_bin = "/usr/local/bin" # This is spesific to linux, might work for osx as well
+            config.self_measure_bin = "/usr/local/bin/energibridge" # This is spesific to linux, might work for osx as well
 
         # Convert class to dictionary with utility method
         ConfigValidator.config_values_or_exception_dict = class_to_dict(config)
