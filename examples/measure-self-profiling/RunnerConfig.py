@@ -1,21 +1,15 @@
 from EventManager.Models.RunnerEvents import RunnerEvents
 from EventManager.EventSubscriptionController import EventSubscriptionController
 from ConfigValidator.Config.Models.RunTableModel import RunTableModel
-from ConfigValidator.Config.Models.FactorModel import FactorModel
 from ConfigValidator.Config.Models.RunnerContext import RunnerContext
 from ConfigValidator.Config.Models.OperationType import OperationType
 from ProgressManager.Output.OutputProcedure import OutputProcedure as output
 
-from typing import Dict, List, Any, Optional
+from typing import Optional, Dict, Any
 from pathlib import Path
 from os.path import dirname, realpath
 
-import os
-import signal
-import pandas as pd
 import time
-import subprocess
-import shlex
 
 class RunnerConfig:
     ROOT_DIR = Path(dirname(realpath(__file__)))
@@ -50,7 +44,7 @@ class RunnerConfig:
 
     This parameter is optional and defaults to /usr/local/bin/energibridge
     """
-    felf_measure_bin:           Path            = "/usr/local/bin/energibridge"
+    self_measure_bin:           Path            = "/usr/local/bin/energibridge"
 
     # Dynamic configurations can be one-time satisfied here before the program takes the config as-is
     # e.g. Setting some variable based on some criteria
