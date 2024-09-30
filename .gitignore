@@ -1,3 +1,6 @@
+.vagrant
+Session.vim
+Vagrantfile
 .idea
 .venv
 */__pycache__/*
