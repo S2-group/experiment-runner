@@ -23,13 +23,14 @@ Optionally set self_measure_bin to the path of your executable.
 From the root directory of the repo, run the following command:
 
 ```bash
-python experiment-runner/ examples/energibridge-profiling/RunnerConfig.py
+python experiment-runner/ examples/measure-self-profiling/RunnerConfig.py
 ```
 
 ## Results
 
-The results are generated in the `examples/energibridge-profiling/experiments` folder.
+The results are generated in the `examples/measure-self-profiling/experiments` folder, and are added to your run table model.
+A log file can be specified to additionally save the full energibridge logs to a separate file.
 
-**!!! WARNING !!!**: COLUMNS IN THE `energibridge.csv` FILES CAN BE DIFFERENT ACROSS MACHINES.
-ADJUST THE DATAFRAME COLUMN NAMES ACCORDINGLY.
+**!!! WARNING !!!**: COLUMNS IN THE `energibridge.log` FILES CAN BE DIFFERENT ACROSS MACHINES.
+ADJUST YOUR ANALYSIS OF THE RESULTS ACCORDINGLY.
 

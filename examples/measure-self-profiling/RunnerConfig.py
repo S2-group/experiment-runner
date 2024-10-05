@@ -31,7 +31,7 @@ class RunnerConfig:
     time_between_runs_in_ms:    int             = 1000
     
     """
-    Whether EnergiBridge should be used to measure the energy consumption of the entire system durring
+    Whether EnergiBridge should be used to measure the energy consumption of the entire system during
     the experiment. 
 
     This parameter is optional and defaults to False
@@ -40,11 +40,19 @@ class RunnerConfig:
 
     """
     Where the EnergiBridge executable is located. As its not a package on linux distros, and must be 
-    installed manually install location can vary.
+    installed manually, the install location can vary.
 
     This parameter is optional and defaults to /usr/local/bin/energibridge
     """
     self_measure_bin:           Path            = "/usr/local/bin/energibridge"
+    
+    """
+    Where to save the full log files for energibridge. If specified, log files are saved to context.run_dir/<self_measure_logfile>.
+    If self_measure_logfile is None, then no log file is generated.
+
+    This parameter is optional and defaults to None, where only summary results will be saved in the run table.
+    """
+    self_measure_logfile:       Path            = "energibridge.log"
 
     # Dynamic configurations can be one-time satisfied here before the program takes the config as-is
     # e.g. Setting some variable based on some criteria

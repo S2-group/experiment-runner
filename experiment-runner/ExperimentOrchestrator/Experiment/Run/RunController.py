@@ -1,4 +1,5 @@
 import subprocess
+import os
 
 from ProgressManager.RunTable.Models.RunProgress import RunProgress
 from EventManager.Models.RunnerEvents import RunnerEvents
@@ -13,8 +14,15 @@ class RunController(IRunController):
         if not self.config.self_measure:
             return
 
-        eb_args = [self.config.self_measure_bin, "--summary",
-                   "-o", "/dev/null", "--", "sleep", "1000000"]
+        eb_args = [self.config.self_measure_bin, "--summary"]
+
+        if self.config.self_measure_logfile:
+            eb_args += ["--output", 
+                        os.path.join(self.run_context.run_dir.resolve(), self.config.self_measure_logfile)]
+        else:
+            eb_args += ["-o", "/dev/null"]
+
+        eb_args += ["--", "sleep", "1000000"]
 
         try:
             self.eb_proc = subprocess.Popen(eb_args, stdout=subprocess.PIPE,
