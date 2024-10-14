@@ -89,13 +89,16 @@ class RunnerConfig:
         """Perform any activity required for starting measurements."""
         solution = context.run_variation['solution']
         problem = context.run_variation['problem']
+        # TODO: make this configurable
+        username = "roy"
+        ip = "192.168.50.208"
+        remote_dir = "/home/roy/Projects/greenlab/experiment-runner"
 
-        profiler_cmd = f'sudo energibridge \
+        profiler_cmd = f'ssh {username}@{ip} "sudo -s energibridge \
                         --interval 200 \
                         --max-execution 0 \
-                        --output {context.run_dir / "energibridge.csv"} \
-                        --summary \
-                        python3 problems/{problem}/{solution}.py'
+                        --output {remote_dir}/llm-code-experiments/energibridge.csv \
+                        python3 {remote_dir}/problems/{problem}/{solution}.py"'
 
         #time.sleep(1) # allow the process to run a little before measuring
         energibridge_log = open(f'{context.run_dir}/energibridge.log', 'w')
@@ -123,6 +126,19 @@ class RunnerConfig:
         """Parse and process any measurement data here.
         You can also store the raw measurement data under `context.run_dir`
         Returns a dictionary with keys `self.run_table_model.data_columns` and their values populated"""
+
+        # TODO: make this configurable
+        username = "roy"
+        ip = "192.168.50.208"
+        remote_path = "/home/roy/Projects/greenlab/experiment-runner/llm-code-experiments/energibridge.csv"
+        scp_command = f"scp -r {username}@{ip}:{remote_path} {context.run_dir}"
+
+        try:
+            # Run the scp command
+            subprocess.run(scp_command, shell=True, check=True, capture_output=True, text=True)
+        except subprocess.CalledProcessError as e:
+            print(f"An error occurred during file transfer: {e}")
+            print(f"Error output: {e.stderr}")
 
         # energibridge.csv - Power consumption of the whole system
         df = pd.read_csv(context.run_dir / f"energibridge.csv")
