@@ -4,6 +4,16 @@ This is the fork of the Experiment-Runner repository of our team **Green :/**
 
 Experiment Runner is a generic framework to automatically execute measurement-based experiments on any platform. The experiments are user-defined, can be completely customized, and expressed in python code!
 
+## For our own group when performing the experiments:
+**On the laptop where the experiment itself are run:**
+1. Clone this repo and install Energibridge, look on Canvas if needed.
+2. Add the group msr if not existant: `sudo groupadd msr`.
+3. Do this after *each* startup, set permissions: ```sudo chgrp -R msr /dev/cpu/*/msr;
+sudo chmod g+r /dev/cpu/*/msr;```
+
+
+
+
 *(Experiment Runner is a generalization of our previous successful tool, [Robot Runner](https://github.com/S2-group/robot-runner), for which you can read more in our [ICSE 2021 tool demo paper](https://github.com/S2-group/robot-runner/tree/master/documentation/ICSE_2021.pdf).)*
 
 ## Features
