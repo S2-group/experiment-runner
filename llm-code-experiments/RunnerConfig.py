@@ -58,7 +58,8 @@ class RunnerConfig:
     def create_run_table_model(self) -> RunTableModel:
         """Create and return the run_table model here. A run_table is a List (rows) of tuples (columns),
         representing each run performed"""
-        problem_factor = FactorModel("problem", ["problem1", "problem2", "problem3"])
+        problem_factor = FactorModel("problem", ["fibonacci_modified", "closest_numbers", "array_manipulation",
+                                                 "hourglass_sum"])
         solution_factor = FactorModel("solution", ["human", "basic", "efficient"])
         self.run_table_model = RunTableModel(
             factors = [problem_factor, solution_factor],
