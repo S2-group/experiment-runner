@@ -13,3 +13,6 @@ tmp/
 _trial_temp/
 pycharm-interpreter.sh
 python
+
+/input/*
+!/input/fibonacci.txt
