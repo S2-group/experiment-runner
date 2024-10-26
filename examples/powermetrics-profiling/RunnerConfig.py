@@ -5,10 +5,12 @@ from ConfigValidator.Config.Models.FactorModel import FactorModel
 from ConfigValidator.Config.Models.RunnerContext import RunnerContext
 from ConfigValidator.Config.Models.OperationType import OperationType
 from ProgressManager.Output.OutputProcedure import OutputProcedure as output
+from Plugins.Profilers.PowerMetrics import PowerMetrics
 
 from typing import Dict, List, Any, Optional
 from pathlib import Path
 from os.path import dirname, realpath
+import time
 
 class RunnerConfig:
     ROOT_DIR = Path(dirname(realpath(__file__)))
@@ -51,12 +53,21 @@ class RunnerConfig:
     def create_run_table_model(self) -> RunTableModel:
         """Create and return the run_table model here. A run_table is a List (rows) of tuples (columns),
         representing each run performed"""
-        pass
+        
+        # Create the experiment run table with factors, and desired data columns
+        factor1 = FactorModel("test_factor", [1, 2])
+        self.run_table_model = RunTableModel(
+            factors = [factor1],
+            data_columns=["poweravg", "wakeups", "cpu-usage"])
+        
+        return self.run_table_model
 
     def before_experiment(self) -> None:
         """Perform any activity required before starting the experiment here
         Invoked only once during the lifetime of the program."""
-        pass
+        
+        # Create the powermetrics object we will use to collect data
+        self.meter = PowerMetrics()
 
     def before_run(self) -> None:
         """Perform any activity required before starting a run.
@@ -67,19 +78,27 @@ class RunnerConfig:
         """Perform any activity required for starting the run here.
         For example, starting the target system to measure.
         Activities after starting the run should also be performed here."""
-        pass      
+        
+        # Optionally change powermetrics parameters between runs (if needed)
+        #self.meter.update_parameters()
 
     def start_measurement(self, context: RunnerContext) -> None:
         """Perform any activity required for starting measurements."""
-        pass
+        
+        # Start measuring useing powermetrics (write to log file)
+        self.meter.start_pm()
 
     def interact(self, context: RunnerContext) -> None:
         """Perform any interaction with the running target system here, or block here until the target finishes."""
-        pass
+        
+        # Wait (block) for a bit to collect some data
+        time.sleep(20)
 
     def stop_measurement(self, context: RunnerContext) -> None:
         """Perform any activity here required for stopping measurements."""
-        pass
+        
+        # Stop measuring at the end of a run
+        self.meter.stop_pm()
 
     def stop_run(self, context: RunnerContext) -> None:
         """Perform any activity here required for stopping the run.
@@ -90,7 +109,12 @@ class RunnerConfig:
         """Parse and process any measurement data here.
         You can also store the raw measurement data under `context.run_dir`
         Returns a dictionary with keys `self.run_table_model.data_columns` and their values populated"""
-        pass
+        
+        # Retrieve data from run
+        run_results = self.meter.parse_logs()
+        
+        # Parse it as required for your experiment and add it to the run table
+
 
     def after_experiment(self) -> None:
         """Perform any activity required after stopping the experiment here
