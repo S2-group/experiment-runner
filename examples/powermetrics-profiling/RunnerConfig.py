@@ -111,7 +111,7 @@ class RunnerConfig:
         Returns a dictionary with keys `self.run_table_model.data_columns` and their values populated"""
         
         # Retrieve data from run
-        run_results = self.meter.parse_logs()
+        run_results = self.meter.parse_logs("../../../powermetrics_outs/plist_power.txt")
         
         # Parse it as required for your experiment and add it to the run table
 

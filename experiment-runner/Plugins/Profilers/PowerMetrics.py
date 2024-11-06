@@ -4,6 +4,7 @@ from collections.abc import Callable
 from pathlib import Path
 import subprocess
 import shlex
+import plistlib
 
 # How to format the output
 class PMFormatTypes(enum.Enum):
@@ -32,54 +33,44 @@ class PMSampleTypes(enum.Enum):
     PM_SAMPLE_SMC       = "smc"             # SMC sensors
     PM_SAMPLE_DCC       = "gpu_dcc_stats"   # gpu duty cycle info
     PM_SAMPLE_NVME      = "nvme_ssd"        # NVMe power state information
-    LM_SAMPLE_THROTTLE  = "io_throttle_ssd" # IO Throttling information
-
-# Different categories of stats available
-class PMStatTypes(enum.Enum):
-    PM_STAT_BATTERY     = 0 # Battery statistics
-    PM_STAT_INTERRUPT   = 1 # Interrupt distribution
-    PM_STAT_POWER       = 2 # CPU energy usage
-    PM_STAT_IO          = 3 # Disc / Network
-    PM_STAT_BACKLIGHT   = 4 # Backlight usage (not portable)
+    PM_SAMPLE_THROTTLE  = "io_throttle_ssd" # IO Throttling information
 
 class PowerMetrics(object):
     """An integration of OSX powermetrics into experiment-runner as a data source plugin"""
-    def __init__(self,                          sample_frequency: int  = 5000, 
-                 out_file: Path         = None, sample_count: int      = None,
-                 order: PMOrderTypes    = None, poweravg: int          = None, wakeup_cost: int       = None,
-                 show_initial: bool     = False, show_summary: bool     = False):
+    def __init__(self,                              sample_frequency: int          = 5000, 
+                 out_file: Path             = None,  poweravg: int                 = None,  
+                 show_summary: bool         = False, samplers: list[PMSampleTypes] = None,
+                 additional_args: list[str] = None):
         
         self.pm_process = None
         self.logfile = "test"
-
-        # All paramters we can pass to powermetrics
-        self.parameters = {
+        
+        # Grab all available power stats by default
+        self.default_parameters = {
             "--output-file": self.logfile,
-            "--sample-interval": sample_frequency,  # default
-            "--sample-count": 0,                    # 0 for inifinite
-            "--order": PMOrderTypes.PM_ORDER_CPU.value,
+            "--sample-interval": sample_frequency,
             "--format": PMFormatTypes.PM_FMT_PLIST.value,
-            "--poweravg": 10,                       # default
-            #"--wakeup-cost": 10,
-            #"--buffer-size": 0,
-            "--hide-platform-power": "",
-            "--hide-cpu-duty-cycle": "",
-            "--hide-gpu-duty-cycle": "",
-            "--show-initial-usage": "",
-            "--show-usage-summary": ""
+            "--samplers": [PMSampleTypes.PM_SAMPLE_CPU_POWER.value, 
+                           PMSampleTypes.PM_SAMPLE_GPU_POWER.value,
+                           PMSampleTypes.PM_SAMPLE_AGPM.value],
+            "--hide-cpu-duty-cycle": ""
         }
 
     # Ensure that powermetrics is not currently running when we delete this object 
     def __del__(self):
         if self.pm_process:
-            pass
+            self.pm_process.terminate()
     
     # Check that we are running on OSX, and that the powermetrics command exists
     def validate_platform(self):
         pass
 
-    # Apply channel and mains settings to the picolog
-    def update_parameters(self, **paramters):
+    # Set the parameters used for power metrics to a new set
+    def update_parameters(self, new_params: dict):
+        for p, v in new_params.items():
+            self.default_parameters[p] = v
+    
+    def format_cmd(self):
         pass
 
     def start_pm(self):
@@ -101,10 +92,26 @@ class PowerMetrics(object):
             print(stdout)
         except Exception as e:
             print(e)
+    
+    @staticmethod
+    def get_stat_types(logfile):
+        pass
 
-    def print_config(self, handle):
+    @staticmethod
+    def get_power(logfile):
         pass
 
     @staticmethod
     def parse_logs(logfile, stats: list):
-        pass
+        fp = open(logfile, "rb")
+
+        plists = []
+        cur_plist = bytearray()
+        for l in fp.readlines():
+            if l[0] == 0:
+                plists.append(plistlib.loads(cur_plist))
+
+                cur_plist = bytearray()
+                cur_plist.extend(l[1:])
+            else:
+                cur_plist.extend(l)

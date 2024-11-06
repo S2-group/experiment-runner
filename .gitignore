@@ -18,3 +18,5 @@ tmp/
 _trial_temp/
 pycharm-interpreter.sh
 python
+
+scratch.py
