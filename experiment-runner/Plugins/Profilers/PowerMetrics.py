@@ -3,8 +3,9 @@ import enum
 from collections.abc import Callable
 from pathlib import Path
 import subprocess
-import shlex
 import plistlib
+import platform
+import shutil
 
 # How to format the output
 class PMFormatTypes(enum.Enum):
@@ -37,12 +38,19 @@ class PMSampleTypes(enum.Enum):
 
 class PowerMetrics(object):
     """An integration of OSX powermetrics into experiment-runner as a data source plugin"""
-    def __init__(self,                                         sample_frequency: int          = 5000, 
-                 out_file: Path             = "pm_out.plist",  samplers: list[PMSampleTypes] = [],
-                 additional_args: list[str] = None,            hide_cpu_duty_cycle: bool = True):
+    def __init__(self,
+                 sample_frequency:      int                 = 5000,
+                 out_file:              Path                = "pm_out.plist",
+                 additional_samplers:   list[PMSampleTypes] = [],
+                 additional_args:       list[str]           = [],               
+                 hide_cpu_duty_cycle:   bool                = True,
+                 order:                 PMOrderTypes        = PMOrderTypes.PM_ORDER_CPU):
         
+        # Double check we have the required software for this plugin
+        self.__validate_platform()
+
         self.pm_process = None
-        self.logfile = "test"
+        self.logfile = out_file
         
         self.additional_args = additional_args
         # Grab all available power stats by default
@@ -50,10 +58,11 @@ class PowerMetrics(object):
             "--output-file": self.logfile,
             "--sample-interval": sample_frequency,
             "--format": PMFormatTypes.PM_FMT_PLIST.value,
-            "--samplers": [PMSampleTypes.PM_SAMPLE_CPU_POWER.value, 
-                           PMSampleTypes.PM_SAMPLE_GPU_POWER.value,
-                           PMSampleTypes.PM_SAMPLE_AGPM.value] + samplers,
-            "--hide-cpu-duty-cycle": hide_cpu_duty_cycle
+            "--samplers": [PMSampleTypes.PM_SAMPLE_CPU_POWER,
+                           PMSampleTypes.PM_SAMPLE_GPU_POWER,
+                           PMSampleTypes.PM_SAMPLE_AGPM] + additional_samplers,
+            "--hide-cpu-duty-cycle": hide_cpu_duty_cycle,
+            "--order": order.value
         }
 
     # Ensure that powermetrics is not currently running when we delete this object 
@@ -63,23 +72,50 @@ class PowerMetrics(object):
     
     # Check that we are running on OSX, and that the powermetrics command exists
     def __validate_platform(self):
-        pass
-
+        if "OSX" not in platform.system():
+            raise RuntimeError("The OSX platform is required for this plugin")
+        
+        if shutil.which("powermetrics") is None:
+            raise RuntimeError("The powermetrics tool is required for this plugin")
+        
     def __format_cmd(self):
-        cmd = ""
-
-        return cmd
+        cmd = ["powermetrics"]
+        
+        # Add in the default parameters
+        for p, v in self.default_parameters.items():
+            if v is False:
+                continue
+            
+            # Add the parameter
+            cmd.append(p)
+            
+            # Add the value
+            if "samplers" in p and isinstance(v, list):
+                cmd.append(",".join([x.value for x in v]))
+            elif not isinstance(v, bool):
+                cmd.append(str(v))
+            
+        return cmd + self.additional_args
 
     def start_pm(self):
         """
         Starts the powermetrics process, with the parameters in default_parameters + additional_args.
         """
-        cmd = self.__format_cmd()
-
         try:
-            self.pm_process = subprocess.Popen(["powermetrics", *shlex.split(cmd)], stdout=subprocess.PIPE)
+            self.pm_process = subprocess.Popen(self.__format_cmd(), 
+                                               stdout=subprocess.PIPE, 
+                                               stderr=subprocess.PIPE)
+
+            stdout, stderr = subprocess.communicate()
+
+            if stderr:
+                self.pm_process.terminate()
+                self.pm_process = None
+                raise RuntimeError(f"Powermetrics encountered an error while starting: {stderr}")
+            
         except Exception as e:
-            print(e)            
+            print(f"Could not start powermetrics: {e}")
+            raise RuntimeError("Powermetrics plugin could not start")
 
     def stop_pm(self):
         """
@@ -94,11 +130,14 @@ class PowerMetrics(object):
         try:
             self.pm_process.terminate()
             stdout, stderr = self.pm_process.communicate()
+            
+            if stderr:
+                raise RuntimeError("powermetrics encountered an error during measurement")
 
-            print(stdout)
             return stdout, stderr
         except Exception as e:
-            print(e)
+            print(f"Could not stop powermetrics: {e}")
+            raise RuntimeError("Powermetrics plugin could not stop")
     
     # Set the parameters used for power metrics to a new set
     def update_parameters(self, new_params: dict):
@@ -116,6 +155,22 @@ class PowerMetrics(object):
             The new list of parameters, can also be valided with self.default_parameters
         """
         for p, v in new_params.items():
+            # Double check new_params where possible
+            if "samplers" in p:
+                assert(isinstance(v, list))
+                for e in v:
+                    assert(isinstance(e, PMSampleTypes))
+            if "format" in p:
+                assert(isinstance(v, PMFormatTypes))
+                v = v.value
+            if "order" in p:
+                assert(isinstance(v, PMOrderTypes))
+                v = v.value
+            if "output-file" in p:
+                assert(isinstance(v, str))
+            if "hide-cpu-duty-cycle" in p:
+                assert(isinstance(v, bool))
+
             self.default_parameters[p] = v
     
     @staticmethod
@@ -167,7 +222,6 @@ class PowerMetrics(object):
         Returns:
             A list of dicts, each representing the plist for a given sample    
         """
-        
         fp = open(logfile, "rb")
 
         plists = []
