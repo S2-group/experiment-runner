@@ -11,6 +11,7 @@ from typing import Dict, List, Any, Optional
 from pathlib import Path
 from os.path import dirname, realpath
 import time
+import numpy as np
 
 class RunnerConfig:
     ROOT_DIR = Path(dirname(realpath(__file__)))
@@ -58,7 +59,7 @@ class RunnerConfig:
         factor1 = FactorModel("test_factor", [1, 2])
         self.run_table_model = RunTableModel(
             factors = [factor1],
-            data_columns=["poweravg", "wakeups", "cpu-usage"])
+            data_columns=["joules", "avg_cpu", "avg_gpu"])
         
         return self.run_table_model
 
@@ -111,10 +112,14 @@ class RunnerConfig:
         Returns a dictionary with keys `self.run_table_model.data_columns` and their values populated"""
         
         # Retrieve data from run
-        run_results = self.meter.parse_logs("../../../powermetrics_outs/plist_power.txt")
-        
-        # Parse it as required for your experiment and add it to the run table
+        run_results = self.meter.parse_pm_plist("../../../powermetrics_outs/plist_power.txt")
 
+        # Parse it as required for your experiment and add it to the run table
+        return {
+                "joules": sum(map(lambda x: x["processor"]["package_joules"], run_results)),
+                "avg_cpu": np.mean(map(lambda x: x["processor"]["packages"]["cores_active_ratio"], run_results)),
+                "avg_gpu": np.mean(map(lambda x: x["processor"]["packages"]["gpu_active_ratio"], run_results)),
+        }
 
     def after_experiment(self) -> None:
         """Perform any activity required after stopping the experiment here

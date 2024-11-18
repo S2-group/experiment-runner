@@ -114,8 +114,7 @@ class PowerMetrics(object):
                 raise RuntimeError(f"Powermetrics encountered an error while starting: {stderr}")
             
         except Exception as e:
-            print(f"Could not start powermetrics: {e}")
-            raise RuntimeError("Powermetrics plugin could not start")
+            raise RuntimeError(f"Powermetrics plugin could not start: {e}")
 
     def stop_pm(self):
         """
@@ -136,8 +135,7 @@ class PowerMetrics(object):
 
             return stdout, stderr
         except Exception as e:
-            print(f"Could not stop powermetrics: {e}")
-            raise RuntimeError("Powermetrics plugin could not stop")
+            raise RuntimeError(f"Powermetrics plugin could not stop {e}")
     
     # Set the parameters used for power metrics to a new set
     def update_parameters(self, new_params: dict):
