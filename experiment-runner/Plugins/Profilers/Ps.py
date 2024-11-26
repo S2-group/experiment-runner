@@ -9,8 +9,72 @@ import shutil
 import time
 import pandas as pd
 
-class PowerJoular(object):
-    """An integration of OSX powermetrics into experiment-runner as a data source plugin"""
+PS_PARAMTERS = {
+        "-A": None,
+        "-a": None,
+        "a": None,
+        "-d": None,
+        "-N": None,
+        "r": None,
+        "T": None,
+        "x": None,
+
+        "-C": list[str],
+        "-G": list[int],
+        "-g": list[str],
+        "-p": list[int],
+        "--ppid": list[int],
+        "-q": list[int],
+        "-s": list[int],
+        "-t": list[int],
+        "-u": list[int],
+        "-U": list[int],
+
+        "-D": str,
+        "-F": None,
+        "-f": None,
+        "f": None,
+        "-H": None,
+        "-j": None,
+        "j": None,
+        "-l": None,
+        "l": None,
+        "-M": None,
+        "-O": str,
+        "O": str,
+        "-o": str,
+        "-P": None,
+        "s": None,
+        "u": None,
+        "v": None,
+        "X": None,
+        "--context": None,
+        "--headers": None,
+        "--no-headers": None,
+        "--cols": int,
+        "--rows": int,
+        "--signames": None,
+        
+        "H": None,
+        "-L": None,
+        "-m": None,
+        "-T": None,
+
+        "-c": None,
+        "c": None,
+        "e": None,
+        "k": str,
+        "L": None,
+        "n": None,
+        "S": None,
+        "-y": None,
+        "-w": None,
+#        "-V": None,    # We dont support version or help
+#       "--help": None  # We dont support the help option
+}
+
+class Ps(object):
+    """An integration of the Linux ps utility into experiment-runner as a data source plugin"""
     def __init__(self):
         self.ps_process = None
         self.additional_args = None
@@ -18,8 +82,8 @@ class PowerJoular(object):
 
     # Ensure that powermetrics is not currently running when we delete this object 
     def __del__(self):
-        if self.pj_process:
-            self.pj_process.terminate()
+        if self.ps_process:
+            self.ps_process.terminate()
     
     # Check that we are running on OSX, and that the powermetrics command exists
     def __validate_platform(self):

@@ -36,6 +36,41 @@ class PMSampleTypes(enum.Enum):
     PM_SAMPLE_NVME      = "nvme_ssd"        # NVMe power state information
     PM_SAMPLE_THROTTLE  = "io_throttle_ssd" # IO Throttling information
 
+# Supported Paramters for the power metrics plugin
+POWERMETRICS_PARAMETERS = {
+    "--poweravg": int,
+    "--buffer-size": int,
+    "--format": PMFormatTypes,
+    "--sample-rate": int,
+    "--sample-count": int,
+    "--output-file": Path,
+    "--order": PMOrderTypes,
+    "--samplers": list[PMSampleTypes],
+    "--wakeup-cost": int,
+    "--unhide-info": list[PMSampleTypes],
+    "--show-all": None,
+    "--show-initial-usage": None,
+    "--show-usage-summary": None,
+    "--show-extra-power-info": None,
+    "--show-pstates": None,
+    "--show-plimits": None,
+    "--show-cpu-qos": None,
+    "--show-cpu-scalability": None,
+    "--show-hwp-capability": None,
+    "--show-process-coalition": None,
+    "--show-responsible-pid": None,
+    "--show-process-wait-times": None,
+    "--show-process-qos-tiers": None,
+    "--show-process-io": None,
+    "--show-process-gpu": None,
+    "--show-process-netstats": None,
+    "--show-process-qos": None,
+    "--show-process-energy": None,
+    "--show-process-samp-norm": None,
+    "--handle-invalid-values": None,
+    "--hide-cpu-duty-cycle": None,
+}
+
 class PowerMetrics(object):
     """An integration of OSX powermetrics into experiment-runner as a data source plugin"""
     def __init__(self,

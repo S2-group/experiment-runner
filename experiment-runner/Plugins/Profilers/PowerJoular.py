@@ -10,9 +10,22 @@ import time
 import signal
 import os
 import pandas as pd
+from Plugins.Profilers.DataSource import CLISource
 
-class PowerJoular(object):
-    """An integration of OSX powermetrics into experiment-runner as a data source plugin"""
+# Supported Paramters for the PowerJoular metrics plugin
+POWERJOULAR_PARAMETERS = {
+    "-p": int,
+    "-a": str,
+    "-f": Path,
+    "-o": Path,
+    "-t": None,
+    "-l": None,
+    "-m": str,
+    "-s": str
+}
+
+class PowerJoular(CLISource):
+    """An integration of PowerJoular into experiment-runner as a data source plugin"""
     def __init__(self):
         self.ps_process = None
         self.additional_args = None
@@ -82,6 +95,7 @@ class PowerJoular(object):
         Returns:
             A list of dicts, each representing the plist for a given sample    
         """
+
         # powerjoular.csv - Power consumption of the whole system
         # powerjoular.csv-PID.csv - Power consumption of that specific process
         df = pd.read_csv(context.run_dir / f"powerjoular.csv-{self.target.pid}.csv")
