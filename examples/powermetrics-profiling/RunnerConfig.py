@@ -87,7 +87,7 @@ class RunnerConfig:
         """Perform any activity required for starting measurements."""
         
         # Start measuring useing powermetrics (write to log file)
-        self.meter.start_pm()
+        self.meter.start()
 
     def interact(self, context: RunnerContext) -> None:
         """Perform any interaction with the running target system here, or block here until the target finishes."""
@@ -99,7 +99,7 @@ class RunnerConfig:
         """Perform any activity here required for stopping measurements."""
         
         # Stop measuring at the end of a run
-        self.meter.stop_pm()
+        self.meter.stop()
 
     def stop_run(self, context: RunnerContext) -> None:
         """Perform any activity here required for stopping the run.
@@ -112,7 +112,7 @@ class RunnerConfig:
         Returns a dictionary with keys `self.run_table_model.data_columns` and their values populated"""
         
         # Retrieve data from run
-        run_results = self.meter.parse_pm_plist("../../../powermetrics_outs/plist_power.txt")
+        run_results = self.meter.parse_log("../../../powermetrics_outs/plist_power.txt")
 
         # Parse it as required for your experiment and add it to the run table
         return {

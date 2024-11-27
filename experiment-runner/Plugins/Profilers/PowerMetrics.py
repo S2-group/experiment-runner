@@ -7,6 +7,8 @@ import plistlib
 import platform
 import shutil
 
+from Plugins.Profilers.DataSource import ParameterDict, CLISource
+
 # How to format the output
 class PMFormatTypes(enum.Enum):
     PM_FMT_TEXT     = "text"
@@ -38,58 +40,56 @@ class PMSampleTypes(enum.Enum):
 
 # Supported Paramters for the power metrics plugin
 POWERMETRICS_PARAMETERS = {
-    "--poweravg": int,
-    "--buffer-size": int,
-    "--format": PMFormatTypes,
-    "--sample-rate": int,
-    "--sample-count": int,
-    "--output-file": Path,
-    "--order": PMOrderTypes,
-    "--samplers": list[PMSampleTypes],
-    "--wakeup-cost": int,
-    "--unhide-info": list[PMSampleTypes],
-    "--show-all": None,
-    "--show-initial-usage": None,
-    "--show-usage-summary": None,
-    "--show-extra-power-info": None,
-    "--show-pstates": None,
-    "--show-plimits": None,
-    "--show-cpu-qos": None,
-    "--show-cpu-scalability": None,
-    "--show-hwp-capability": None,
-    "--show-process-coalition": None,
-    "--show-responsible-pid": None,
-    "--show-process-wait-times": None,
-    "--show-process-qos-tiers": None,
-    "--show-process-io": None,
-    "--show-process-gpu": None,
-    "--show-process-netstats": None,
-    "--show-process-qos": None,
-    "--show-process-energy": None,
-    "--show-process-samp-norm": None,
-    "--handle-invalid-values": None,
-    "--hide-cpu-duty-cycle": None,
+    ("--poweravg",      "-a"): int,
+    ("--buffer-size",   "-b"): int,
+    ("--format",        "-f"): PMFormatTypes,
+    ("--sample-rate",   "-i"): int,
+    ("--sample-count",  "-n"): int,
+    ("--output-file",   "-o"): Path,
+    ("--order",         "-r"): PMOrderTypes,
+    ("--samplers",      "-s"): list[PMSampleTypes],
+    ("--wakeup-cost",   "-t"): int,
+    ("--unhide-info",):        list[PMSampleTypes],
+    ("--show-all",      "-A"): None,
+    ("--show-initial-usage",): None,
+    ("--show-usage-summary",): None,
+    ("--show-extra-power-info",): None,
+    ("--show-pstates",): None,
+    ("--show-plimits",): None,
+    ("--show-cpu-qos",): None,
+    ("--show-cpu-scalability",): None,
+    ("--show-hwp-capability",): None,
+    ("--show-process-coalition",): None,
+    ("--show-responsible-pid",): None,
+    ("--show-process-wait-times",): None,
+    ("--show-process-qos-tiers",): None,
+    ("--show-process-io",): None,
+    ("--show-process-gpu",): None,
+    ("--show-process-netstats",): None,
+    ("--show-process-qos"): None,
+    ("--show-process-energy",): None,
+    ("--show-process-samp-norm",): None,
+    ("--handle-invalid-values",): None,
+    ("--hide-cpu-duty-cycle",): None,
 }
 
-class PowerMetrics(object):
+class PowerMetrics(CLISource):
+    parameters = ParameterDict(POWERMETRICS_PARAMETERS)
+    source_name = "powermetrics"
+    supported_platforms = ["OSX"]
+
     """An integration of OSX powermetrics into experiment-runner as a data source plugin"""
     def __init__(self,
                  sample_frequency:      int                 = 5000,
                  out_file:              Path                = "pm_out.plist",
+                 additional_args:       list[str]           = [],    
                  additional_samplers:   list[PMSampleTypes] = [],
-                 additional_args:       list[str]           = [],               
                  hide_cpu_duty_cycle:   bool                = True,
                  order:                 PMOrderTypes        = PMOrderTypes.PM_ORDER_CPU):
-        
-        # Double check we have the required software for this plugin
-        self.__validate_platform()
 
-        self.pm_process = None
         self.logfile = out_file
-        
-        self.additional_args = additional_args
         # Grab all available power stats by default
-        self.default_parameters = {
+        self.args = {
             "--output-file": self.logfile,
             "--sample-interval": sample_frequency,
             "--format": PMFormatTypes.PM_FMT_PLIST.value,
@@ -100,112 +100,6 @@ class PowerMetrics(object):
             "--order": order.value
         }
 
-    # Ensure that powermetrics is not currently running when we delete this object 
-    def __del__(self):
-        if self.pm_process:
-            self.pm_process.terminate()
-    
-    # Check that we are running on OSX, and that the powermetrics command exists
-    def __validate_platform(self):
-        if "OSX" not in platform.system():
-            raise RuntimeError("The OSX platform is required for this plugin")
-        
-        if shutil.which("powermetrics") is None:
-            raise RuntimeError("The powermetrics tool is required for this plugin")
-        
-    def __format_cmd(self):
-        cmd = ["powermetrics"]
-        
-        # Add in the default parameters
-        for p, v in self.default_parameters.items():
-            if v is False:
-                continue
-            
-            # Add the parameter
-            cmd.append(p)
-            
-            # Add the value
-            if "samplers" in p and isinstance(v, list):
-                cmd.append(",".join([x.value for x in v]))
-            elif not isinstance(v, bool):
-                cmd.append(str(v))
-            
-        return cmd + self.additional_args
-
-    def start_pm(self):
-        """
-        Starts the powermetrics process, with the parameters in default_parameters + additional_args.
-        """
-        try:
-            self.pm_process = subprocess.Popen(self.__format_cmd(), 
-                                               stdout=subprocess.PIPE, 
-                                               stderr=subprocess.PIPE)
-
-            stdout, stderr = subprocess.communicate()
-
-            if stderr:
-                self.pm_process.terminate()
-                self.pm_process = None
-                raise RuntimeError(f"Powermetrics encountered an error while starting: {stderr}")
-            
-        except Exception as e:
-            raise RuntimeError(f"Powermetrics plugin could not start: {e}")
-
-    def stop_pm(self):
-        """
-        Terminates the powermetrics process, as it was running indefinetly. This method collects the stdout and stderr
-
-        Returns:
-            stdout, stderr of the powermetrics process.
-        """
-        if not self.pm_process:
-            return
-
-        try:
-            self.pm_process.terminate()
-            stdout, stderr = self.pm_process.communicate()
-            
-            if stderr:
-                raise RuntimeError("powermetrics encountered an error during measurement")
-
-            return stdout, stderr
-        except Exception as e:
-            raise RuntimeError(f"Powermetrics plugin could not stop {e}")
-    
-    # Set the parameters used for power metrics to a new set
-    def update_parameters(self, new_params: dict):
-        """
-        Updates the list of parameters, to be in line with new_params.
-        Note that samplers will be set to the new list if present, make sure
-        to include the previous set if you still want to use them.
-
-        Parameters:
-            new_params (dict): A dictionary containing the new list of parameters. For 
-            parameters with no value (like --hide-cpu-duty-cycle) use a boolean to indicate
-            if they can be used.
-
-        Returns:
-            The new list of parameters, can also be valided with self.default_parameters
-        """
-        for p, v in new_params.items():
-            # Double check new_params where possible
-            if "samplers" in p:
-                assert(isinstance(v, list))
-                for e in v:
-                    assert(isinstance(e, PMSampleTypes))
-            if "format" in p:
-                assert(isinstance(v, PMFormatTypes))
-                v = v.value
-            if "order" in p:
-                assert(isinstance(v, PMOrderTypes))
-                v = v.value
-            if "output-file" in p:
-                assert(isinstance(v, str))
-            if "hide-cpu-duty-cycle" in p:
-                assert(isinstance(v, bool))
-
-            self.default_parameters[p] = v
-    
     @staticmethod
     def get_plist_power(pm_plists: list[dict]):
         """
@@ -243,7 +137,7 @@ class PowerMetrics(object):
         return power_plists
     
     @staticmethod
-    def parse_pm_plist(logfile: Path):
+    def parse_log(logfile: Path):
         """
         Parses a provided logfile from powermetrics in plist format. Powermetrics outputs a plist
         for every sample taken, it included a newline after the closing <\plist>, we account for that here
