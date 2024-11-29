@@ -123,10 +123,10 @@ class RunnerConfig:
         # energibridge.csv - Power consumption of the whole system
         df = pd.read_csv(context.run_dir / f"energibridge.csv")
         run_data = {
-                'dram_energy'   : round(df['DRAM_ENERGY (J)'].sum(), 3),
-                'package_energy': round(df['PACKAGE_ENERGY (J)'].sum(), 3),
-                'pp0_energy'    : round(df['PP0_ENERGY (J)'].sum(), 3),
-                'pp1_energy'    : round(df['PP1_ENERGY (J)'].sum(), 3),
+            'dram_energy': round(df['DRAM_ENERGY (J)'].iloc[-1] - df['DRAM_ENERGY (J)'].iloc[0], 3),
+            'package_energy': round(df['PACKAGE_ENERGY (J)'].iloc[-1] - df['PACKAGE_ENERGY (J)'].iloc[0], 3),
+            'pp0_energy': round(df['PP0_ENERGY (J)'].iloc[-1] - df['PP0_ENERGY (J)'].iloc[0], 3),
+            'pp1_energy': round(df['PP1_ENERGY (J)'].iloc[-1] - df['PP1_ENERGY (J)'].iloc[0], 3),
         }
         return run_data
 
