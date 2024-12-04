@@ -1,12 +1,14 @@
-from abc import ABC
-from collections import UserDict
+from abc import ABC, abstractmethod
+from collections import UserDict, Iterable
+from pathlib import Path
 import platform
 import shutil
+import subprocess
 
 class ParameterDict(UserDict):
     def valid_key(self, key):
         return  isinstance(key, str)            \
-                or isinstance(key, tuple)  \
+                or isinstance(key, tuple)       \
                 or isinstance(key, list[str])
     
     def str_to_tuple(self, key):
@@ -52,20 +54,19 @@ class DataSource(ABC):
         self.logfile = None
 
     def __validate_platform(self):
-        for platform in self.supported_platforms:
-            if "OSX" in platform.system():
-                return
+        if platform.system() in self.supported_platforms:
+            return
 
         raise RuntimeError(f"One of: {self.supported_platforms} is required for this plugin")
 
     @property
     @abstractmethod
-    def supported_platforms(self): -> list[str]
+    def supported_platforms(self) -> list[str]:
         pass
 
     @property
     @abstractmethod
-    def source_name(self): -> str
+    def source_name(self) -> str:
         pass
         
     @abstractmethod
@@ -87,7 +88,7 @@ class CLISource(DataSource):
     
     @property
     @abstractmethod
-    def parameters(self): -> ParameterDict
+    def parameters(self) -> ParameterDict:
         pass
 
     def __validate_platform(self):
@@ -96,65 +97,78 @@ class CLISource(DataSource):
         if shutil.which(self.source_name) is None:
             raise RuntimeError(f"The {self.source_name} cli tool is required for this plugin")
     
-    def __validate_start(self, stdout, stderr):
-        if stderr:
+    def __validate_start(self):
+        if self.process.poll() != None:
             raise RuntimeError(f"{self.source_name} did not start correctly")
 
     def __validate_stop(self, stdout, stderr):
         if stderr:
-            raise RuntimeWarning(f"{self.source_name} did not stop correctly")
+            raise RuntimeWarning(f"{self.source_name} did not stop correctly, or encountered an error")
     
-    def __validate_parameters(self, parameters):
-        # TODO: Ensure types match here
-        pass
+    def __validate_parameters(self, parameters: dict):
+        for p, v in parameters:
+            if not isinstance(v, self.parameters[p]):
+                raise RuntimeError(f"Unexpected type: {type(v)} for parameter {p}")
 
     def __format_cmd(self):
-        cmd = [self.source_name]
+        self.__validate_parameters(self.args)
+
+        cmd = self.source_name
         
-        # Add in the default parameters
-        for p, v in self.default_parameters.items():
-            #TODO: Parse a parameter dict into a string format
-            pass
-            
+        # Transform the parameter dict into string format to be parsed by shlex
+        for p, v in self.args.items():
+            if isinstance(v, Iterable):
+                cmd += f" {p} {",".join(map(str, v))}"
+            else:
+                cmd += f" {p} {v}"
+
         return cmd
 
-    def update_parameters(self, new_parameters: dict):
-        for p, v in new_params.items():
-            # TODO: parse parameters, add to parameter dict
-            pass
+    def update_parameters(self, add: dict={}, remove: list[str]=[]):
+        # Check if the new sets of parameters are sane
+        self.__validate_parameters(add)
+
+        for p, v in add.items():
+            self.args[p] = v
+
+        for p in remove:
+            if p in self.args.keys():
+                del self.args[p]
+        
+        # Double check that our typeing is still valid
+        self.__validate_parameters(self.args)
 
     def start(self):
         try:
-            self.pm_process = subprocess.Popen(self.__format_cmd(), 
+            self.process = subprocess.Popen(shutil.shlex.split(self.__format_cmd()), 
                                                stdout=subprocess.PIPE, 
                                                stderr=subprocess.PIPE)
-
-            stdout, stderr = subprocess.communicate()
-
         except Exception as e:
             raise RuntimeError(f"{self.source_name} process could not start: {e}")
         
-        self.__validate_start(stdout, stderr)
+        self.__validate_start()
 
     def stop(self):
         if not self.process:
             return
 
         try:
-            self.process.terminate()
-            stdout, stderr = self.process.communicate()
+            # most cli utilities should stop with ctrl-c
+            self.process.send_signal(subprocess.signal.SIGINT) 
+            stdout, stderr = self.process.communicate(timeout=5)
 
         except Exception as e:
             raise RuntimeError(f"{self.source_name} process could not stop {e}")
         
         self.__validate_stop(stdout, stderr)
+        return stdout.decode("utf-8")
 
 class DeviceSource(DataSource):
     def __init__(self):
         self.super().__init__()
         self.device_handle = None
 
-    def __del__():
+    def __del__(self):
         if self.device_handle:
             self.close_device()
     

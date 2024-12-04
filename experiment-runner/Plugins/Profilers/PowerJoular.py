@@ -1,14 +1,5 @@
 from __future__ import annotations
-import enum
-from collections.abc import Callable
 from pathlib import Path
-import subprocess
-import plistlib
-import platform
-from shutil import shlex
-import time
-import signal
-import os
 import pandas as pd
 from Plugins.Profilers.DataSource import CLISource, ParameterDict
 
@@ -33,14 +24,21 @@ class PowerJoular(CLISource):
     def __init__(self,
                  sample_frequency:      int                 = 5000,
                  out_file:              Path                = "powerjoular.csv",
-                 additional_args:       list[str]           = []):
+                 additional_args:       dict                = {},
+                 target_pid:            int                 = None):
 
-        self.logfile = outfile
-        # TODO: Convert to appropriate dict
-        self.args = f'powerjoular -l -p {self.target.pid} -f {self.run_dir / "powerjoular.csv"}'
-            
+        self.logfile = out_file
+        self.args = {
+            "-l": None,
+            "-f": self.logfile,
+        }
+
+        if target_pid:
+            self.update_parameters(add={"-p": target_pid})
+
+        self.update_parameters(add=additional_args)
+
     @staticmethod
     def parse_log(logfile: Path):
-        # powerjoular.csv - Power consumption of the whole system
-        # powerjoular.csv-PID.csv - Power consumption of that specific process
-        df = pd.read_csv(context.run_dir / f"powerjoular.csv-{self.target.pid}.csv")
+        # Things are already in csv format here, no checks needed
+        return pd.read_csv(logfile).to_dict()

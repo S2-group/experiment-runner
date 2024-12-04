@@ -5,6 +5,7 @@ from ConfigValidator.Config.Models.FactorModel import FactorModel
 from ConfigValidator.Config.Models.RunnerContext import RunnerContext
 from ConfigValidator.Config.Models.OperationType import OperationType
 from ProgressManager.Output.OutputProcedure import OutputProcedure as output
+from Plugins.Profilers.PowerJoular import PowerJoular
 
 from typing import Dict, List, Any, Optional
 from pathlib import Path
@@ -90,14 +91,16 @@ class RunnerConfig:
         # Configure the environment based on the current variation
         subprocess.check_call(shlex.split(f'cpulimit -b -p {self.target.pid} --limit {cpu_limit}'))
         
+        time.sleep(1) # allow the process to run a little before measuring
 
     def start_measurement(self, context: RunnerContext) -> None:
         """Perform any activity required for starting measurements."""
-
-        profiler_cmd = f'powerjoular -l -p {self.target.pid} -f {context.run_dir / "powerjoular.csv"}'
-
-        time.sleep(1) # allow the process to run a little before measuring
-        self.profiler = subprocess.Popen(shlex.split(profiler_cmd))
+        
+        # Set up the powerjoular object, provide an (optional) target and output file name
+        self.meter = PowerJoular(target_pid=self.target.pid, 
+                                 out_file=context.run_dir / "powerjoular.csv")
+        # Start measuring with powerjoular
+        stdout = self.meter.start()
 
     def interact(self, context: RunnerContext) -> None:
         """Perform any interaction with the running target system here, or block here until the target finishes."""
@@ -109,14 +112,14 @@ class RunnerConfig:
 
     def stop_measurement(self, context: RunnerContext) -> None:
         """Perform any activity here required for stopping measurements."""
-
-        os.kill(self.profiler.pid, signal.SIGINT) # graceful shutdown of powerjoular
-        self.profiler.wait()
+        
+        # Stop the measurements
+        stdout = self.meter.stop()
 
     def stop_run(self, context: RunnerContext) -> None:
         """Perform any activity here required for stopping the run.
         Activities after stopping the run should also be performed here."""
-        
+
         self.target.kill()
         self.target.wait()
     
@@ -124,13 +127,17 @@ class RunnerConfig:
         """Parse and process any measurement data here.
         You can also store the raw measurement data under `context.run_dir`
         Returns a dictionary with keys `self.run_table_model.data_columns` and their values populated"""
+        
+        out_file = context.run_dir / "powerjoular.csv"
 
-        # powerjoular.csv - Power consumption of the whole system
-        # powerjoular.csv-PID.csv - Power consumption of that specific process
-        df = pd.read_csv(context.run_dir / f"powerjoular.csv-{self.target.pid}.csv")
+        results_global = self.meter.parse_log(out_file)
+        # If you specified a target_pid or used the -p paramter 
+        # a second csv for that target will be generated
+        # results_process = self.meter.parse_log(f"{out_file}-{self.target.pid}.csv" )
+
         run_data = {
-            'avg_cpu': round(df['CPU Utilization'].sum(), 3),
-            'total_energy': round(df['CPU Power'].sum(), 3),
+            'avg_cpu': round(results_global['CPU Utilization'].sum(), 3),
+            'total_energy': round(results_global['CPU Power'].sum(), 3),
         }
         return run_data
 

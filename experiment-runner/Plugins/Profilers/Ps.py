@@ -1,12 +1,5 @@
 from __future__ import annotations
-import enum
-from collections.abc import Callable
 from pathlib import Path
-import subprocess
-import plistlib
-import platform
-import shutil
-import time
 import pandas as pd
 from Plugins.Profilers.DataSource import CLISource, ParameterDict
 
@@ -43,7 +36,7 @@ PS_PARAMTERS = {
         ("-M", "Z"): None,
         ("-O"): str,
         ("O"): str,
-        ("-o", "o", "--format"): str,
+        ("-o", "o", "--format"): list[str],
         ("-P"): None,
         ("s"): None,
         ("u"): None,
@@ -72,36 +65,58 @@ PS_PARAMTERS = {
         ("-w", "w"): None,
 }
 
-class Ps(CliSource):
+class Ps(CLISource):
     parameters = ParameterDict(PS_PARAMTERS)
     source_name = "ps"
     supported_platforms = ["Linux"]
 
     """An integration of the Linux ps utility into experiment-runner as a data source plugin"""
     def __init__(self,
-                 sample_frequency:      int                 = 5000,
-                 out_file:              Path                = "powerjoular.csv",
-                 additional_args:       list[str]           = []):
-        
-        self.logfile = out_file
-        
-        # TODO: Convert this into a params dict
-        self.args = f'ps -p {self.target.pid} --noheader -o %cpu'
+                 sleep_interval:        int                 = 1,
+                 out_file:              Path                = "ps.csv",
+                 additional_args:       dict                = [],
+                 target_pid:            list[int]           = None,
+                 out_format:            list[str]           = ["%cpu", "%mem"]):
 
         # man 1 ps
         # %cpu:
         #   cpu utilization of the process in "##.#" format.  Currently, it is the CPU time used
         #   divided by the time the process has been running (cputime/realtime ratio), expressed
         #   as a percentage.  It will not add up to 100% unless you are lucky.  (alias pcpu).
-        wrapper_script = f'''
-        while true; do {profiler_cmd}; sleep 1; done
-        '''
+        # %mem:
+        #   How much memory the process is currently using
+        self.logfile = out_file
+        self.sleep_interval = sleep_interval
+        self.args = {
+            "--noheader": None,
+            "-o": out_format
+        }
 
-    def parse_log(self, logfile: Path):
-        df = pd.DataFrame(columns=['cpu_usage'])
-        for i, l in enumerate(self.profiler.stdout.readlines()):
-            cpu_usage=float(l.decode('ascii').strip())
-            df.loc[i] = [cpu_usage]
+        if target_pid:
+            self.update_parameters(add={"-p": target_pid})
+
+        self.update_parameters(add=additional_args)
+
+    def __format_cmd(self):
+        cmd = self.super().__format_cmd();
         
-        df.to_csv(self.run_dir / 'raw_data.csv', index=False)
+        output_cmd = ""
+        if self.logfile is not None:
+            output_cmd = f" > {self.logfile}"
+
+        # This wraps the ps utility so that it runs continously and also outputs into a csv like format
+        return f'''
+            sh -c "while true; do {cmd} | awk '{{$1=$1}};1' | tr ' ' ','{output_cmd}; sleep {self.sleep_interval}; done"
+            '''
+
+    # The csv saved by default has no header, this must be provided by the user
+    @staticmethod
+    def parse_log(logfile: Path, column_names: list[str]):
+        # Ps has many options, we dont check them all. converting to csv might fail in some cases
+        try:
+            df = pd.read_csv(logfile, names=column_names).to_dict()
+        except Exception as e:
+            print(f"Could not parse ps ouput csv: {e}")
+
+        return df.to_dict()
 

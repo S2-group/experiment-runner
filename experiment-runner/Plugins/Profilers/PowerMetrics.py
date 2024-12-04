@@ -1,11 +1,7 @@
 from __future__ import annotations
 import enum
-from collections.abc import Callable
 from pathlib import Path
-import subprocess
 import plistlib
-import platform
-import shutil
 
 from Plugins.Profilers.DataSource import ParameterDict, CLISource
 
@@ -76,13 +72,13 @@ POWERMETRICS_PARAMETERS = {
 class PowerMetrics(CLISource):
     parameters = ParameterDict(POWERMETRICS_PARAMETERS)
     source_name = "powermetrics"
-    supported_platforms = ["OSX"]
+    supported_platforms = ["OS X"]
 
     """An integration of OSX powermetrics into experiment-runner as a data source plugin"""
     def __init__(self,
                  sample_frequency:      int                 = 5000,
                  out_file:              Path                = "pm_out.plist",
-                 additional_args:       list[str]           = [],    
+                 additional_args:       dict                = {},    
                  additional_samplers:   list[PMSampleTypes] = [],
                  hide_cpu_duty_cycle:   bool                = True,
                  order:                 PMOrderTypes        = PMOrderTypes.PM_ORDER_CPU):
@@ -100,6 +96,8 @@ class PowerMetrics(CLISource):
             "--order": order.value
         }
 
+        self.update_parameters(add=additional_args)
+    
     @staticmethod
     def get_plist_power(pm_plists: list[dict]):
         """
@@ -154,6 +152,7 @@ class PowerMetrics(CLISource):
         plists = []
         cur_plist = bytearray()
         for l in fp.readlines():
+            # Powermetrics outputs plists with null bytes inbetween. We account for this
             if l[0] == 0:
                 plists.append(plistlib.loads(cur_plist))
 

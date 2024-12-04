@@ -66,9 +66,7 @@ class RunnerConfig:
     def before_experiment(self) -> None:
         """Perform any activity required before starting the experiment here
         Invoked only once during the lifetime of the program."""
-        
-        # Create the powermetrics object we will use to collect data
-        self.meter = PowerMetrics()
+        pass
 
     def before_run(self) -> None:
         """Perform any activity required before starting a run.
@@ -79,14 +77,14 @@ class RunnerConfig:
         """Perform any activity required for starting the run here.
         For example, starting the target system to measure.
         Activities after starting the run should also be performed here."""
-        
-        # Optionally change powermetrics parameters between runs (if needed)
-        #self.meter.update_parameters()
+        pass
 
     def start_measurement(self, context: RunnerContext) -> None:
         """Perform any activity required for starting measurements."""
-        
-        # Start measuring useing powermetrics (write to log file)
+
+        # Create the powermetrics object we will use to collect data
+        self.meter = PowerMetrics(out_file=context.run_dir / "powermetrics.plist")
+        # Start measuring useing powermetrics
         self.meter.start()
 
     def interact(self, context: RunnerContext) -> None:
@@ -99,7 +97,7 @@ class RunnerConfig:
         """Perform any activity here required for stopping measurements."""
         
         # Stop measuring at the end of a run
-        self.meter.stop()
+        stdout = self.meter.stop()
 
     def stop_run(self, context: RunnerContext) -> None:
         """Perform any activity here required for stopping the run.
@@ -112,7 +110,7 @@ class RunnerConfig:
         Returns a dictionary with keys `self.run_table_model.data_columns` and their values populated"""
         
         # Retrieve data from run
-        run_results = self.meter.parse_log("../../../powermetrics_outs/plist_power.txt")
+        run_results = self.meter.parse_log(context.run_dir / "powermetrics.plist")
 
         # Parse it as required for your experiment and add it to the run table
         return {
