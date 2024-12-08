@@ -44,7 +44,7 @@ PS_PARAMTERS = {
         ("X"): None,
         ("--context"): None,
         ("--headers"): None,
-        ("--no-headers"): None,
+        ("--no-headers", "--noheader"): None,
         ("--cols", "--columns", "--width"): int,
         ("--rows", "--lines"): int,
         ("--signames"): None,
@@ -74,10 +74,11 @@ class Ps(CLISource):
     def __init__(self,
                  sleep_interval:        int                 = 1,
                  out_file:              Path                = "ps.csv",
-                 additional_args:       dict                = [],
+                 additional_args:       dict                = {},
                  target_pid:            list[int]           = None,
                  out_format:            list[str]           = ["%cpu", "%mem"]):
-
+        
+        super().__init__()
         # man 1 ps
         # %cpu:
         #   cpu utilization of the process in "##.#" format.  Currently, it is the CPU time used
@@ -97,24 +98,22 @@ class Ps(CLISource):
 
         self.update_parameters(add=additional_args)
 
-    def __format_cmd(self):
-        cmd = self.super().__format_cmd();
+    def _format_cmd(self):
+        cmd = super()._format_cmd()
         
         output_cmd = ""
         if self.logfile is not None:
-            output_cmd = f" > {self.logfile}"
+            output_cmd = f" >> {self.logfile}"
 
         # This wraps the ps utility so that it runs continously and also outputs into a csv like format
-        return f'''
-            sh -c "while true; do {cmd} | awk '{{$1=$1}};1' | tr ' ' ','{output_cmd}; sleep {self.sleep_interval}; done"
-            '''
+        return f'''sh -c "while true; do {cmd} | awk '{{$1=$1}};1' | tr ' ' ','{output_cmd}; sleep {self.sleep_interval}; done"'''
 
     # The csv saved by default has no header, this must be provided by the user
     @staticmethod
     def parse_log(logfile: Path, column_names: list[str]):
         # Ps has many options, we dont check them all. converting to csv might fail in some cases
         try:
-            df = pd.read_csv(logfile, names=column_names).to_dict()
+            df = pd.read_csv(logfile, names=column_names)
         except Exception as e:
             print(f"Could not parse ps ouput csv: {e}")
 
