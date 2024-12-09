@@ -1,24 +1,24 @@
 from __future__ import annotations
-import enum
+from enum import StrEnum
 from pathlib import Path
 import plistlib
 
 from Plugins.Profilers.DataSource import ParameterDict, CLISource
 
 # How to format the output
-class PMFormatTypes(enum.Enum):
+class PMFormatTypes(StrEnum):
     PM_FMT_TEXT     = "text"
     PM_FMT_PLIST    = "plist"
 
 # How to order results
-class PMOrderTypes(enum.Enum):
+class PMOrderTypes(StrEnum):
     PM_ORDER_PID    = "pid"
     PM_ORDER_WAKEUP = "wakeups"
     PM_ORDER_CPU    = "cputime"
     PM_ORDER_HYBRID = "composite"
 
 # Which sources to sample from
-class PMSampleTypes(enum.Enum):
+class PMSampleTypes(StrEnum):
     PM_SAMPLE_TASKS     = "tasks"           # per task cpu usage and wakeup stats
     PM_SAMPLE_BAT       = "battery"         # battery and backlight info
     PM_SAMPLE_NET       = "network"         # network usage info
@@ -72,7 +72,7 @@ POWERMETRICS_PARAMETERS = {
 class PowerMetrics(CLISource):
     parameters = ParameterDict(POWERMETRICS_PARAMETERS)
     source_name = "powermetrics"
-    supported_platforms = ["OS X"]
+    supported_platforms = ["Darwin"]
 
     """An integration of OSX powermetrics into experiment-runner as a data source plugin"""
     def __init__(self,
@@ -86,14 +86,14 @@ class PowerMetrics(CLISource):
         self.logfile = out_file
         # Grab all available power stats by default
         self.args = {
-            "--output-file": self.logfile,
-            "--sample-interval": sample_frequency,
-            "--format": PMFormatTypes.PM_FMT_PLIST.value,
+            "--output-file": Path(self.logfile),
+            "--sample-rate": sample_frequency,
+            "--format": PMFormatTypes.PM_FMT_PLIST,
             "--samplers": [PMSampleTypes.PM_SAMPLE_CPU_POWER,
                            PMSampleTypes.PM_SAMPLE_GPU_POWER,
                            PMSampleTypes.PM_SAMPLE_AGPM] + additional_samplers,
             "--hide-cpu-duty-cycle": hide_cpu_duty_cycle,
-            "--order": order.value
+            "--order": order
         }
 
         self.update_parameters(add=additional_args)
@@ -117,8 +117,9 @@ class PowerMetrics(CLISource):
             stats = {}
             if "GPU" in plist.keys():
                 stats["GPU"] = plist["GPU"].copy()
-                del stats["GPU"]["misc_counters"]
-                del stats["GPU"]["pstates"]
+                for gpu in range(len(stats["GPU"])):
+                    del stats["GPU"][gpu]["misc_counters"]
+                    del stats["GPU"][gpu]["p_states"]
 
             if "processor" in plist.keys():
                 stats["processor"] = plist["processor"]
@@ -130,7 +131,7 @@ class PowerMetrics(CLISource):
             if "timestamp" in plist.keys():
                 stats["timestamp"] = plist["timestamp"]
 
-            power_plists.apend(stats)
+            power_plists.append(stats)
         
         return power_plists
     
@@ -145,20 +146,20 @@ class PowerMetrics(CLISource):
             logfile (Path): The path to the plist logfile created by powermetrics
 
         Returns:
-            A list of dicts, each representing the plist for a given sample    
+            A list of dicts, each representing the plist for a given sample
         """
-        fp = open(logfile, "rb")
-
         plists = []
         cur_plist = bytearray()
-        for l in fp.readlines():
-            # Powermetrics outputs plists with null bytes inbetween. We account for this
-            if l[0] == 0:
-                plists.append(plistlib.loads(cur_plist))
+        with open(logfile, "rb") as fp:
+            for l in fp.readlines():
+                # Powermetrics outputs plists with null bytes inbetween. We account for this
+                if l[0] == 0:
+                    cur_plist.extend(l[1:])
+                else:
+                    cur_plist.extend(l)
 
-                cur_plist = bytearray()
-                cur_plist.extend(l[1:])
-            else:
-                cur_plist.extend(l)
-            
+                if b"</plist>\n" in l:
+                    plists.append(plistlib.loads(cur_plist))
+                    cur_plist = bytearray()
+
         return plists

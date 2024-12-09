@@ -115,8 +115,8 @@ class RunnerConfig:
         # Parse it as required for your experiment and add it to the run table
         return {
                 "joules": sum(map(lambda x: x["processor"]["package_joules"], run_results)),
-                "avg_cpu": np.mean(map(lambda x: x["processor"]["packages"]["cores_active_ratio"], run_results)),
-                "avg_gpu": np.mean(map(lambda x: x["processor"]["packages"]["gpu_active_ratio"], run_results)),
+                "avg_cpu": np.mean(list(map(lambda x: x["processor"]["packages"][0]["cores_active_ratio"], run_results))),
+                "avg_gpu": np.mean(list(map(lambda x: x["processor"]["packages"][0]["gpu_active_ratio"], run_results))),
         }
 
     def after_experiment(self) -> None:

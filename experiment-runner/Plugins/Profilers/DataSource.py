@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import get_origin, get_args
 import platform
 import shlex
+from enum import StrEnum
 import shutil
 import subprocess
 
@@ -125,7 +126,7 @@ class CLISource(DataSource):
     # Should work well with single level type generics e.g. list[int]
     # TODO: Expand this to be more robust with other types
     def _validate_type(self, param, p_type):
-        if p_type != str and isinstance(param, Iterable):
+        if p_type != str and not isinstance(param, StrEnum) and isinstance(param, Iterable):
             if type(param) != get_origin(p_type):
                 return False
             
@@ -155,7 +156,7 @@ class CLISource(DataSource):
         for p, v in self.args.items():
             if v == None:
                 cmd += f" {p}"
-            elif isinstance(v, Iterable):
+            elif isinstance(v, Iterable) and not (isinstance(v, StrEnum) or isinstance(v, str)):
                 cmd += f" {p} {",".join(map(str, v))}"
             else:
                 cmd += f" {p} {v}"
