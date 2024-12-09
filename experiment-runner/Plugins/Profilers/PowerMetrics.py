@@ -82,7 +82,7 @@ class PowerMetrics(CLISource):
                  additional_samplers:   list[PMSampleTypes] = [],
                  hide_cpu_duty_cycle:   bool                = True,
                  order:                 PMOrderTypes        = PMOrderTypes.PM_ORDER_CPU):
-
+        super().__init__()
         self.logfile = out_file
         # Grab all available power stats by default
         self.args = {
@@ -99,7 +99,7 @@ class PowerMetrics(CLISource):
         self.update_parameters(add=additional_args)
     
     @staticmethod
-    def get_plist_power(pm_plists: list[dict]):
+    def parse_plist_power(pm_plists: list[dict]):
         """
         Extracts from a list of plists, the relavent power statistics if present. If no 
         power stats are present, this returns an empty list. This is mainly a helper method, 

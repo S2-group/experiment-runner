@@ -8,60 +8,69 @@ sys.path.append("experiment-runner")
 from Plugins.Profilers.Ps import Ps
 
 class TestPs(unittest.TestCase):
+    def tearDown(self):
+        if self.plugin is None:
+            return
+
+        if os.path.exists(self.plugin.logfile):
+            os.remove(self.plugin.logfile)
+
+        self.plugin = None
+
     def test_update(self):
-        ps = Ps()
-        original_args = ps.args.copy()
+        self.plugin = Ps()
+        original_args = self.plugin.args.copy()
 
-        ps.update_parameters(add={"-e": None})
-        self.assertIn(("-e", None), ps.args.items())
+        self.plugin.update_parameters(add={"-e": None})
+        self.assertIn(("-e", None), self.plugin.args.items())
 
-        ps.update_parameters(remove=["-e"])    
-        self.assertDictEqual(original_args, ps.args)
+        self.plugin.update_parameters(remove=["-e"])    
+        self.assertDictEqual(original_args, self.plugin.args)
 
-        ps.update_parameters(add={"--cols": 2})
-        self.assertIn(("--cols", 2), ps.args.items())
+        self.plugin.update_parameters(add={"--cols": 2})
+        self.assertIn(("--cols", 2), self.plugin.args.items())
 
-        ps.update_parameters(add={"-p": [1,2,3]})
-        self.assertIn(("-p", [1,2,3]), ps.args.items())
+        self.plugin.update_parameters(add={"-p": [1,2,3]})
+        self.assertIn(("-p", [1,2,3]), self.plugin.args.items())
 
     def test_invalid_update(self):
-        ps = Ps()
+        self.plugin = Ps()
         
         with self.assertRaises(RuntimeError):
-            ps.update_parameters(add={"--not-a-valid-parameter": None})
+            self.plugin.update_parameters(add={"--not-a-valid-parameter": None})
         
-        original_args = ps.args.copy()
+        original_args = self.plugin.args.copy()
 
         # This should be a null op
-        ps.update_parameters(remove=["--not-a-valid-parameter"])
-        self.assertDictEqual(original_args, ps.args)
+        self.plugin.update_parameters(remove=["--not-a-valid-parameter"])
+        self.assertDictEqual(original_args, self.plugin.args)
 
         with self.assertRaises(RuntimeError):
-            ps.update_parameters(add={"--cols": "not the correct type"})
+            self.plugin.update_parameters(add={"--cols": "not the correct type"})
 
         with self.assertRaises(RuntimeError):
-            ps.update_parameters(add={"-p": ["not", "correct", "type"]})
+            self.plugin.update_parameters(add={"-p": ["not", "correct", "type"]})
 
     
     def test_run(self):
         valid_pid = psutil.pids()[1] # Could possibly fail if the process finishes before we test
         test_outfile = "/tmp/ps_test_out.csv"
-        ps = Ps(out_file=test_outfile, target_pid=[valid_pid])
+        self.plugin = Ps(out_file=test_outfile, target_pid=[valid_pid])
 
         sleep_len = 2
-        headers = ps.args["-o"]
+        headers = self.plugin.args["-o"]
 
-        ps.start()
+        self.plugin.start()
         time.sleep(sleep_len)
-        ps.stop()
+        self.plugin.stop()
 
-        # We should see 5 entries in the log
-        log = ps.parse_log(test_outfile, headers)
+        self.assertTrue(os.path.exists(test_outfile))
+
+        # We should see 2 entries in the log
+        log = self.plugin.parse_log(test_outfile, headers)
         
         for hdr in headers:
             self.assertEqual(len(log[hdr]), sleep_len)
-
-        os.remove(test_outfile)
 
 if __name__ == '__main__':
     unittest.main()

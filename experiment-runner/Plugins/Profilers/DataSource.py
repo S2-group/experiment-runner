@@ -1,13 +1,12 @@
 from abc import ABC, abstractmethod
 from collections import UserDict
-from collections.abc import Iterable # This is only valid >= python 3.10 I think
+from collections.abc import Iterable # This import is only valid >= python 3.10 I think
 from pathlib import Path
 from typing import get_origin, get_args
 import platform
 import shlex
 import shutil
 import subprocess
-import signal
 
 class ParameterDict(UserDict):
     def valid_key(self, key):
@@ -126,7 +125,7 @@ class CLISource(DataSource):
     # Should work well with single level type generics e.g. list[int]
     # TODO: Expand this to be more robust with other types
     def _validate_type(self, param, p_type):
-        if isinstance(param, Iterable):
+        if p_type != str and isinstance(param, Iterable):
             if type(param) != get_origin(p_type):
                 return False
             
@@ -134,7 +133,7 @@ class CLISource(DataSource):
                 return False
             
             return True
-            
+        
         return isinstance(param, p_type)  
 
     def _validate_parameters(self, parameters: dict):
@@ -146,7 +145,7 @@ class CLISource(DataSource):
                 continue
 
             if not self._validate_type(v, self.parameters[p]):
-                raise RuntimeError(f"Unexpected type: {type(v)} for parameter {p}")
+                raise RuntimeError(f"Unexpected type: {type(v)} for parameter {p}, expected {self.parameters[p]}")
 
     def _format_cmd(self):
         self._validate_parameters(self.args)

@@ -26,17 +26,25 @@ class PowerJoular(CLISource):
                  out_file:              Path                = "powerjoular.csv",
                  additional_args:       dict                = {},
                  target_pid:            int                 = None):
-
+        
+        super().__init__()
         self.logfile = out_file
         self.args = {
             "-l": None,
-            "-f": self.logfile,
+            "-f": Path(self.logfile),
         }
 
         if target_pid:
             self.update_parameters(add={"-p": target_pid})
 
         self.update_parameters(add=additional_args)
+    
+    @property
+    def target_logfile(self):
+        if "-p" in self.args.keys():
+            return f"{self.logfile}-{self.args["-p"]}.csv"
+
+        return None
 
     @staticmethod
     def parse_log(logfile: Path):

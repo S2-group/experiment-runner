@@ -1,21 +1,83 @@
 import os
 import unittest
-import shutil
-import tempfile
+import time
 import sys
 
 sys.path.append("experiment-runner")
 from Plugins.Profilers.PowerMetrics import PowerMetrics
+from Plugins.Profilers.PowerMetrics import PMSampleTypes
 
 class TestPowerMetrics(unittest.TestCase):
+    def tearDown(self):
+        if self.plugin is None:
+            return
+
+        if os.path.exists(self.plugin.logfile):
+            os.remove(self.plugin.logfile)
+
+        self.plugin = None
+
     def test_update(self):
-        pass
-    
+        self.plugin = PowerMetrics()
+        original_args = self.plugin.args.copy()
+
+        self.plugin.update_parameters(add={"--show-process-qos": None})
+        self.assertIn(("-t", None), self.plugin.args.items())
+
+        self.plugin.update_parameters(remove=["--show-process-qos"])    
+        self.assertDictEqual(original_args, self.plugin.args)
+
+        self.plugin.update_parameters(add={"--unhide-info": 
+                                           [PMSampleTypes.PM_SAMPLE_TASKS, PMSampleTypes.PM_SAMPLE_SFI]})
+        self.assertIn(("--unhide-info", 
+                       [PMSampleTypes.PM_SAMPLE_TASKS, PMSampleTypes.PM_SAMPLE_SFI]), self.plugin.args.items())
+
     def test_invalid_update(self):
-        pass
+        self.plugin = PowerMetrics()
+        
+        with self.assertRaises(RuntimeError):
+            self.plugin.update_parameters(add={"--not-a-valid-parameter": None})
+        
+        original_args = self.plugin.args.copy()
+
+        # This should be a null op
+        self.plugin.update_parameters(remove=["--not-a-valid-parameter"])
+        self.assertDictEqual(original_args, self.plugin.args)
+
+        with self.assertRaises(RuntimeError):
+            self.plugin.update_parameters(add={"--unhide-info": ["not", "correct", "type"]})
     
     def test_run(self):
-        pass
+        test_outfile = "/tmp/pm_test_out.csv"
+        self.plugin = PowerMetrics(out_file=test_outfile, sample_frequency=1000)
+
+        sleep_len = 2
+
+        self.plugin.start()
+        time.sleep(sleep_len)
+        self.plugin.stop()
+
+        self.assertTrue(os.path.exists(test_outfile))
+
+        log = self.plugin.parse_log(test_outfile)
+        power_data = self.plugin.parse_plist_power(log)
+        
+        # powermetrics returns a seperate plist for each measurement
+        self.assertEqual(len(log), sleep_len/(self.plugin.sample_frequency/1000))
+        
+        # Make sure we have results from each sampler
+        for sampler in map(lambda x: x.value, self.plugin.args["--samplers"]):
+            # As names of samplers can differ from names of the data headers, we approximate this a bit.
+            for l in log:
+                self.assertTrue(filter(lambda x: sampler.lower() in x.lower(), l.keys()) > 0)
+        
+        # Check that our power data filter is also working
+        for l in power_data:
+            self.assertIn("GPU", l.keys())
+            self.assertIn("agpm_stats", l.keys())
+            self.assertIn("processor", l.keys())
+            self.assertIn("timestamp", l.keys())
+
 
 if __name__ == '__main__':
     unittest.main()
