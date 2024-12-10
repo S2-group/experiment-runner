@@ -6,6 +6,8 @@ from ProgressManager.Output.BaseOutputManager import BaseOutputManager
 from tempfile import NamedTemporaryFile
 import shutil
 import csv
+import os
+import pwd
 from typing import Dict, List
 
 
@@ -62,6 +64,11 @@ class CSVOutputManager(BaseOutputManager):
                     writer.writerow(row)
 
         shutil.move(tempfile.name, self._experiment_path / 'run_table.csv')
+        
+        # Change permissions so the files can be accessed if run as root (needed for some plugins)
+        user = pwd.getpwnam(os.getlogin())
+        os.chown(self._experiment_path / "run_table.csv", user.pw_uid, user.pw_gid)
+
         output.console_log_WARNING(f"CSVManager: Updated row {updated_row['__run_id']}")
 
         # with open(self.experiment_path + '/run_table.csv', 'w', newline='') as myfile:

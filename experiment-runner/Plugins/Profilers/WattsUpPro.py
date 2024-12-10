@@ -27,7 +27,7 @@ class WattsUpPro(object):
                 print( 'Default port is /dev/ttyUSB0 for Linux')
                 raise RuntimeError("Invalid port")
 
-        self.s = serial.Serial(port, 115200 )
+        self.s = serial.Serial(port, 115200)
         self.logfile = None
         self.interval = interval
         # initialize lists for keeping data

@@ -5,15 +5,12 @@ from ConfigValidator.Config.Models.FactorModel import FactorModel
 from ConfigValidator.Config.Models.RunnerContext import RunnerContext
 from ConfigValidator.Config.Models.OperationType import OperationType
 from ProgressManager.Output.OutputProcedure import OutputProcedure as output
-
-from Plugins.Profilers.PowerJoular import PowerJoular
+from Plugins.Profilers.PowerMetrics import PowerMetrics
 
 from typing import Dict, List, Any, Optional
 from pathlib import Path
 from os.path import dirname, realpath
-
 import time
-import subprocess
 import numpy as np
 
 class RunnerConfig:
@@ -57,11 +54,13 @@ class RunnerConfig:
     def create_run_table_model(self) -> RunTableModel:
         """Create and return the run_table model here. A run_table is a List (rows) of tuples (columns),
         representing each run performed"""
-        cpu_limit_factor = FactorModel("cpu_limit", [25, 50, 100])
+        
+        # Create the experiment run table with factors, and desired data columns
+        factor1 = FactorModel("test_factor", [1, 2])
         self.run_table_model = RunTableModel(
-            factors = [cpu_limit_factor],
-            data_columns=['avg_cpu', 'total_energy']
-        )
+            factors = [factor1],
+            data_columns=["joules", "avg_cpu", "avg_gpu"])
+        
         return self.run_table_model
 
     def before_experiment(self) -> None:
@@ -78,63 +77,46 @@ class RunnerConfig:
         """Perform any activity required for starting the run here.
         For example, starting the target system to measure.
         Activities after starting the run should also be performed here."""
-        
-        cpu_limit = context.run_variation['cpu_limit']
-
-        # start the target
-        self.target = subprocess.Popen(['python', './primer.py'],
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=self.ROOT_DIR,
-        )
-
-        # Configure the environment based on the current variation
-        subprocess.check_call(f'cpulimit -p {self.target.pid} --limit {cpu_limit} &', shell=True)
-        
-        time.sleep(1) # allow the process to run a little before measuring
+        pass
 
     def start_measurement(self, context: RunnerContext) -> None:
         """Perform any activity required for starting measurements."""
-        
-        # Set up the powerjoular object, provide an (optional) target and output file name
-        self.meter = PowerJoular(target_pid=self.target.pid, 
-                                 out_file=context.run_dir / "powerjoular.csv")
-        # Start measuring with powerjoular
+
+        # Create the powermetrics object we will use to collect data
+        self.meter = PowerMetrics(out_file=context.run_dir / "powermetrics.plist")
+        # Start measuring useing powermetrics
         self.meter.start()
 
     def interact(self, context: RunnerContext) -> None:
         """Perform any interaction with the running target system here, or block here until the target finishes."""
-
-        # No interaction. We just run it for XX seconds.
-        # Another example would be to wait for the target to finish, e.g. via `self.target.wait()`
-        output.console_log("Running program for 20 seconds")
+        
+        # Wait (block) for a bit to collect some data
         time.sleep(20)
 
     def stop_measurement(self, context: RunnerContext) -> None:
         """Perform any activity here required for stopping measurements."""
         
-        # Stop the measurements
+        # Stop measuring at the end of a run
         stdout = self.meter.stop()
 
     def stop_run(self, context: RunnerContext) -> None:
         """Perform any activity here required for stopping the run.
         Activities after stopping the run should also be performed here."""
-
-        self.target.kill()
-        self.target.wait()
+        pass       
     
     def populate_run_data(self, context: RunnerContext) -> Optional[Dict[str, Any]]:
         """Parse and process any measurement data here.
         You can also store the raw measurement data under `context.run_dir`
         Returns a dictionary with keys `self.run_table_model.data_columns` and their values populated"""
         
-        out_file = context.run_dir / "powerjoular.csv"
+        # Retrieve data from run
+        run_results = self.meter.parse_log(context.run_dir / "powermetrics.plist")
 
-        results_global = self.meter.parse_log(out_file)
-        # If you specified a target_pid or used the -p paramter 
-        # a second csv for that target will be generated
-        # results_process = self.meter.parse_log(self.meter.target_logfile)
+        # Parse it as required for your experiment and add it to the run table
         return {
-            'avg_cpu': round(np.mean(list(results_global['CPU Utilization'].values())), 3),
-            'total_energy': round(sum(list(results_global['CPU Power'].values())), 3),
+                "joules": sum(map(lambda x: x["processor"]["package_joules"], run_results)),
+                "avg_cpu": np.mean(list(map(lambda x: x["processor"]["packages"][0]["cores_active_ratio"], run_results))),
+                "avg_gpu": np.mean(list(map(lambda x: x["processor"]["packages"][0]["gpu_active_ratio"], run_results))),
         }
 
     def after_experiment(self) -> None:
