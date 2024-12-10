@@ -5,18 +5,16 @@ from ConfigValidator.Config.Models.FactorModel import FactorModel
 from ConfigValidator.Config.Models.RunnerContext import RunnerContext
 from ConfigValidator.Config.Models.OperationType import OperationType
 from ProgressManager.Output.OutputProcedure import OutputProcedure as output
+
 from Plugins.Profilers.PowerJoular import PowerJoular
 
 from typing import Dict, List, Any, Optional
 from pathlib import Path
 from os.path import dirname, realpath
 
-import os
-import signal
-import pandas as pd
 import time
 import subprocess
-import shlex
+import numpy as np
 
 class RunnerConfig:
     ROOT_DIR = Path(dirname(realpath(__file__)))
@@ -89,7 +87,7 @@ class RunnerConfig:
         )
 
         # Configure the environment based on the current variation
-        subprocess.check_call(shlex.split(f'cpulimit -b -p {self.target.pid} --limit {cpu_limit}'))
+        subprocess.check_call(f'cpulimit -p {self.target.pid} --limit {cpu_limit} &', shell=True)
         
         time.sleep(1) # allow the process to run a little before measuring
 
@@ -100,7 +98,7 @@ class RunnerConfig:
         self.meter = PowerJoular(target_pid=self.target.pid, 
                                  out_file=context.run_dir / "powerjoular.csv")
         # Start measuring with powerjoular
-        stdout = self.meter.start()
+        self.meter.start()
 
     def interact(self, context: RunnerContext) -> None:
         """Perform any interaction with the running target system here, or block here until the target finishes."""
@@ -133,13 +131,11 @@ class RunnerConfig:
         results_global = self.meter.parse_log(out_file)
         # If you specified a target_pid or used the -p paramter 
         # a second csv for that target will be generated
-        # results_process = self.meter.parse_log(f"{out_file}-{self.target.pid}.csv" )
-
-        run_data = {
-            'avg_cpu': round(results_global['CPU Utilization'].sum(), 3),
-            'total_energy': round(results_global['CPU Power'].sum(), 3),
+        # results_process = self.meter.parse_log(self.meter.target_logfile)
+        return {
+            'avg_cpu': round(np.mean(list(results_global['CPU Utilization'].values())), 3),
+            'total_energy': round(sum(list(results_global['CPU Power'].values())), 3),
         }
-        return run_data
 
     def after_experiment(self) -> None:
         """Perform any activity required after stopping the experiment here

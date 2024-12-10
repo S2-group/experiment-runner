@@ -5,7 +5,7 @@ from ConfigValidator.Config.Models.FactorModel import FactorModel
 from ConfigValidator.Config.Models.RunnerContext import RunnerContext
 from ConfigValidator.Config.Models.OperationType import OperationType
 from ProgressManager.Output.OutputProcedure import OutputProcedure as output
-from Plugins.Profilers.PowerJoular import PS
+from Plugins.Profilers.Ps import Ps
 
 from typing import Dict, List, Any, Optional
 from pathlib import Path
@@ -99,7 +99,7 @@ class RunnerConfig:
             subprocess.check_call(shlex.split(f'taskset -cp 0 {self.target.pid}'))
 
         # Limit the targets cputime
-        subprocess.check_call(shlex.split(f'cpulimit -b -p {self.target.pid} --limit {cpu_limit}'))
+        subprocess.check_call(f'cpulimit --limit={cpu_limit} -p {self.target.pid} &', shell=True)
         
         time.sleep(1) # allow the process to run a little before measuring
 
@@ -107,8 +107,8 @@ class RunnerConfig:
         """Perform any activity required for starting measurements."""
         
         # Set up the ps object, provide an (optional) target and output file name
-        self.meter = PS(out_file=context.run_dir / "ps.csv",
-                        target_pid=self.target.pid)
+        self.meter = Ps(out_file=context.run_dir / "ps.csv",
+                        target_pid=[self.target.pid])
         # Start measuring with ps
         self.meter.start()
 
@@ -142,8 +142,8 @@ class RunnerConfig:
                                        column_names=["cpu_usage", "memory_usage"])
 
         return {
-            "avg_cpu": round(np.mean(results['cpu_usage']), 3),
-            "avg_mem": round(np.mean(results['memory_usage']), 3)
+            "avg_cpu": round(np.mean(list(results['cpu_usage'].values())), 3),
+            "avg_mem": round(np.mean(list(results['memory_usage'].values())), 3)
         }
 
     def after_experiment(self) -> None:
