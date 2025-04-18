@@ -8,7 +8,8 @@ class JSONOutputManager(BaseOutputManager):
 
     def write_metadata(self, metadata: Metadata):
         with open(self._experiment_path / "metadata.json", 'w') as json_file:
-            json_file.write(jsonpickle.encode(metadata, indent=2))
+            #json_file.write(jsonpickle.encode(metadata, indent=2))
+            json_file.write(jsonpickle.encode(metadata))
 
     def read_metadata(self) -> Metadata:
         with open(self._experiment_path / "metadata.json", 'r') as json_file:

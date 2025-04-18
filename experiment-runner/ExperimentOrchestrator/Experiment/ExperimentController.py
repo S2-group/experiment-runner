@@ -36,8 +36,17 @@ class ExperimentController:
 
         self.csv_data_manager = CSVOutputManager(self.config.experiment_path)
         self.json_data_manager = JSONOutputManager(self.config.experiment_path)
-        self.run_table = self.config.create_run_table_model().generate_experiment_run_table()
+        run_tbl = self.config.create_run_table_model()
+        
+        # Add in the proper data column for energibridge
+        if self.config.self_measure:
+            if "self-measure" in run_tbl._RunTableModel__data_columns:
+                raise BaseError("Cannot use self-measure as data column name if self_measure is active")
 
+            run_tbl._RunTableModel__data_columns.append("self-measure")
+
+        self.run_table = run_tbl.generate_experiment_run_table()
+        
         # Create experiment output folder, and in case that it exists, check if we can resume
         self.restarted = False
         try:
