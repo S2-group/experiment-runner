@@ -5,12 +5,13 @@ from ConfigValidator.Config.Models.FactorModel import FactorModel
 from ConfigValidator.Config.Models.RunnerContext import RunnerContext
 from ConfigValidator.Config.Models.OperationType import OperationType
 from ProgressManager.Output.OutputProcedure import OutputProcedure as output
+from Plugins.Profilers.Ps import Ps
 
 from typing import Dict, List, Any, Optional
 from pathlib import Path
 from os.path import dirname, realpath
 
-import pandas as pd
+import numpy as np
 import time
 import subprocess
 import shlex
@@ -64,14 +65,16 @@ class RunnerConfig:
             exclude_variations = [
                 {cpu_limit_factor: [70], pin_core_factor: [False]} # all runs having the combination <'70', 'False'> will be excluded
             ],
-            data_columns=['avg_cpu']
+            data_columns=["avg_cpu", "avg_mem"]
         )
         return self.run_table_model
 
     def before_experiment(self) -> None:
         """Perform any activity required before starting the experiment here
         Invoked only once during the lifetime of the program."""
-        subprocess.check_call(['make'], cwd=self.ROOT_DIR) # compile
+
+        # compile the target program
+        subprocess.check_call(['make'], cwd=self.ROOT_DIR)
 
     def before_run(self) -> None:
         """Perform any activity required before starting a run.
@@ -93,27 +96,21 @@ class RunnerConfig:
 
         # Configure the environment based on the current variation
         if pin_core:
-            subprocess.check_call(shlex.split(f'taskset -cp 0  {self.target.pid}'))
-        subprocess.check_call(shlex.split(f'cpulimit -b -p {self.target.pid} --limit {cpu_limit}'))
+            subprocess.check_call(shlex.split(f'taskset -cp 0 {self.target.pid}'))
+
+        # Limit the targets cputime
+        subprocess.check_call(f'cpulimit --limit={cpu_limit} -p {self.target.pid} &', shell=True)
         
+        time.sleep(1) # allow the process to run a little before measuring
 
     def start_measurement(self, context: RunnerContext) -> None:
         """Perform any activity required for starting measurements."""
-
-        # man 1 ps
-        # %cpu:
-        #   cpu utilization of the process in "##.#" format.  Currently, it is the CPU time used
-        #   divided by the time the process has been running (cputime/realtime ratio), expressed
-        #   as a percentage.  It will not add up to 100% unless you are lucky.  (alias pcpu).
-        profiler_cmd = f'ps -p {self.target.pid} --noheader -o %cpu'
-        wrapper_script = f'''
-        while true; do {profiler_cmd}; sleep 1; done
-        '''
-
-        time.sleep(1) # allow the process to run a little before measuring
-        self.profiler = subprocess.Popen(['sh', '-c', wrapper_script],
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE
-        )
+        
+        # Set up the ps object, provide an (optional) target and output file name
+        self.meter = Ps(out_file=context.run_dir / "ps.csv",
+                        target_pid=[self.target.pid])
+        # Start measuring with ps
+        self.meter.start()
 
     def interact(self, context: RunnerContext) -> None:
         """Perform any interaction with the running target system here, or block here until the target finishes."""
@@ -126,8 +123,8 @@ class RunnerConfig:
     def stop_measurement(self, context: RunnerContext) -> None:
         """Perform any activity here required for stopping measurements."""
 
-        self.profiler.kill()
-        self.profiler.wait()
+        # Stop the measurements
+        stdout = self.meter.stop()
 
     def stop_run(self, context: RunnerContext) -> None:
         """Perform any activity here required for stopping the run.
@@ -141,17 +138,13 @@ class RunnerConfig:
         You can also store the raw measurement data under `context.run_dir`
         Returns a dictionary with keys `self.run_table_model.data_columns` and their values populated"""
 
-        df = pd.DataFrame(columns=['cpu_usage'])
-        for i, l in enumerate(self.profiler.stdout.readlines()):
-            cpu_usage=float(l.decode('ascii').strip())
-            df.loc[i] = [cpu_usage]
-        
-        df.to_csv(context.run_dir / 'raw_data.csv', index=False)
+        results = self.meter.parse_log(context.run_dir / "ps.csv", 
+                                       column_names=["cpu_usage", "memory_usage"])
 
-        run_data = {
-            'avg_cpu': round(df['cpu_usage'].mean(), 3)
+        return {
+            "avg_cpu": round(np.mean(list(results['cpu_usage'].values())), 3),
+            "avg_mem": round(np.mean(list(results['memory_usage'].values())), 3)
         }
-        return run_data
 
     def after_experiment(self) -> None:
         """Perform any activity required after stopping the experiment here

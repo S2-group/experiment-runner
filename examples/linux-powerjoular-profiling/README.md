@@ -20,9 +20,10 @@ pip install -r requirements.txt
 ## Running
 
 From the root directory of the repo, run the following command:
+NOTE: This program must be run as root, as powerjoular requires this for its use of Intel RAPL.
 
 ```bash
-python experiment-runner/ examples/linux-powerjoular-profiling/RunnerConfig.py
+sudo python experiment-runner/ examples/linux-powerjoular-profiling/RunnerConfig.py
 ```
 
 ## Results

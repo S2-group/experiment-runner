@@ -1,3 +1,8 @@
+.vagrant
+macos-sonoma.conf
+macos-sonoma/
+Vagrantfile
+Session.vim
 .idea
 .venv
 .vagrant
@@ -14,7 +19,6 @@ tmp/
 _trial_temp/
 pycharm-interpreter.sh
 python
-
 Session.vim
-
 Vagrantfile
+scratch.py
