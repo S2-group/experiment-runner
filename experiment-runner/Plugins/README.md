@@ -100,9 +100,86 @@ class RunnerConfig:
         meter.log(5, str(context.run_dir.resolve() / 'sample.log'))
 
     def populate_run_data(self, context: RunnerContext) -> Optional[Dict[str, Any]]:
-        run_data = {}
+        log_data = {}
         with open(context.run_dir.resolve() / 'sample.log') as f:
             lines = f.readlines()
-        # prase lines and populate `run_data`
-        return run_data
+        # prase lines and populate `log_data`
+        return log_data
 ```
+
+---
+
+## PicoCM3.py
+
+### Overview 
+This plugin implements a python wrapper for the C driver and interface for the PicoLog CM3 device. It facilitates power measurements from up to three different inputs using clamps that physically attach to wires to measure the current passing through them.
+
+### Requirements
+* (Hardware) [PicoLog CM3 device](https://www.picotech.com/download/manuals/PicoLogCM3CurrentDataLoggerUsersGuide.pdf)
+
+* Requires the picosdk drivers to be installed. Instructions found [here](https://www.picotech.com/downloads/linux)) see the section on "installing drivers only".
+
+* The LD_LIBRARY_PATH environment variable MUST be set in your environment to the location of the CM3 driver (/opt/picoscope/lib on linux by default)
+
+* The python numpy package
+
+```bash
+pip install numpy
+```
+
+### Usage
+
+```python
+from Plugins.Profilers.PicoCM3 import PicoCM3, CM3DataTypes, CM3Channels
+
+class RunnerConfig:
+    def create_run_table_model(self) -> RunTableModel:
+        self.run_table_model = RunTableModel(
+            data_columns=['timestamp', 'channel_1(A)', 'channel_2(off)', 'channel_3(off)']) # Channel 1 is in Amps
+
+        return self.run_table_model
+
+    def before_experiment(self) -> None:
+        # Setup the picolog cm3 here (the parameters passed are also the default)
+        self.meter = PicoCM3(sample_frequency   = 1000, # Sample the CM3 every second
+                             mains_setting      = 0,    # Account for 50hz mains frequency
+                             channel_settings   = {     # Which channels are enabled in what mode
+                                CM3Channels.PLCM3_CHANNEL_1.value: CM3DataTypes.PLCM3_1_MILLIVOLT.value,
+                                CM3Channels.PLCM3_CHANNEL_2.value: CM3DataTypes.PLCM3_OFF.value,
+                                CM3Channels.PLCM3_CHANNEL_3.value: CM3DataTypes.PLCM3_OFF.value})
+        # Open the device
+        self.meter.open_device()
+
+    def start_measurement(self, context: RunnerContext) -> None:
+        # Start the picologs measurements here, create a unique log file for each (or pass the values through a variable)
+        self.latest_log = str(context.run_dir.resolve() / f'picocm3.log')
+        self.meter.log(timeout=60, self.latest_log)
+
+    def populate_run_data(self, context: RunnerContext) -> Optional[Dict[str, Any]]:       
+        if self.latest_log == None:
+            return {}
+
+        log_data = self.meter.parse_log(self.latest_log)
+        
+        run_data = {k: None for k in self.run_table_model.get_data_columns()}
+        # Parse the log_data dict here, and populate run_data as required by your experiment
+        return run_data
+
+    # Ensure that the PicoLog is closed properly
+    def after_experiment(self) -> None:
+        self.meter.close_device()
+```
+
+---
+
+### Known issues
+* After the device has been opened, changing a set channels settings (via the plcm3.PLCM3SetChannel api call) for a second time will result in some systems freezing, requiring a restart. Ensure that you only set these settings once for the entire experiment to avoid this.
+
+### Side Notes
+* The libpswrappers package does not provide a python API for the CM3, we provide this
+
+* The linux drivers are by default available only for Ubuntu or openSUSE, after the repository has been added.
+
+* The PicoLog CM3 does support connection over ethernet, this can be facilitated using the plcm3 python api we provide.
+
+* Be aware that you must call device_open() and device_closed() on the PicoCM3 for the device to operate as intended, not closing will result in the bug described earlier.

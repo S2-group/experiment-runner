@@ -10,14 +10,6 @@ from typing import Dict, List, Any, Optional
 from pathlib import Path
 from os.path import dirname, realpath
 
-from Plugins.Profilers import CodecarbonWrapper
-from Plugins.Profilers.CodecarbonWrapper import DataColumns as CCDataCols
-
-@CodecarbonWrapper.emission_tracker(
-    data_columns=[CCDataCols.EMISSIONS, CCDataCols.ENERGY_CONSUMED],
-    country_iso_code="NLD" # your country code
-)
-
 
 class RunnerConfig:
     ROOT_DIR = Path(dirname(realpath(__file__)))

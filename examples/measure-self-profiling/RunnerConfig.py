@@ -1,21 +1,15 @@
 from EventManager.Models.RunnerEvents import RunnerEvents
 from EventManager.EventSubscriptionController import EventSubscriptionController
 from ConfigValidator.Config.Models.RunTableModel import RunTableModel
-from ConfigValidator.Config.Models.FactorModel import FactorModel
 from ConfigValidator.Config.Models.RunnerContext import RunnerContext
 from ConfigValidator.Config.Models.OperationType import OperationType
 from ProgressManager.Output.OutputProcedure import OutputProcedure as output
 
-from typing import Dict, List, Any, Optional
+from typing import Optional, Dict, Any
 from pathlib import Path
 from os.path import dirname, realpath
 
-import os
-import signal
-import pandas as pd
 import time
-import subprocess
-import shlex
 
 class RunnerConfig:
     ROOT_DIR = Path(dirname(realpath(__file__)))
@@ -35,6 +29,30 @@ class RunnerConfig:
     """The time Experiment Runner will wait after a run completes.
     This can be essential to accommodate for cooldown periods on some systems."""
     time_between_runs_in_ms:    int             = 1000
+    
+    """
+    Whether EnergiBridge should be used to measure the energy consumption of the entire system during
+    the experiment. 
+
+    This parameter is optional and defaults to False
+    """
+    self_measure:               bool            = True
+
+    """
+    Where the EnergiBridge executable is located. As its not a package on linux distros, and must be 
+    installed manually, the install location can vary.
+
+    This parameter is optional and defaults to /usr/local/bin/energibridge
+    """
+    self_measure_bin:           Path            = "/usr/local/bin/energibridge"
+    
+    """
+    Where to save the full log files for energibridge. If specified, log files are saved to context.run_dir/<self_measure_logfile>.
+    If self_measure_logfile is None, then no log file is generated.
+
+    This parameter is optional and defaults to None, where only summary results will be saved in the run table.
+    """
+    self_measure_logfile:       Path            = "energibridge.log"
 
     # Dynamic configurations can be one-time satisfied here before the program takes the config as-is
     # e.g. Setting some variable based on some criteria
@@ -58,12 +76,9 @@ class RunnerConfig:
     def create_run_table_model(self) -> RunTableModel:
         """Create and return the run_table model here. A run_table is a List (rows) of tuples (columns),
         representing each run performed"""
-        sampling_factor = FactorModel("sampling", [10, 50, 100, 200, 500, 1000])
         self.run_table_model = RunTableModel(
-            factors = [sampling_factor],
-            data_columns=['dram_energy', 'package_energy',
-                          'pp0_energy', 'pp1_energy']
-
+            factors = [],
+            data_columns=['example_data']
         )
         return self.run_table_model
 
@@ -85,30 +100,18 @@ class RunnerConfig:
 
     def start_measurement(self, context: RunnerContext) -> None:
         """Perform any activity required for starting measurements."""
-        sampling_interval = context.run_variation['sampling']
-
-        profiler_cmd = f'sudo energibridge \
-                        --interval {sampling_interval} \
-                        --max-execution 20 \
-                        --output {context.run_dir / "energibridge.csv"} \
-                        --summary \
-                        python3 examples/energibridge-profiling/primer.py'
-
-        #time.sleep(1) # allow the process to run a little before measuring
-        energibridge_log = open(f'{context.run_dir}/energibridge.log', 'w')
-        self.profiler = subprocess.Popen(shlex.split(profiler_cmd), stdout=energibridge_log)
+        pass
 
     def interact(self, context: RunnerContext) -> None:
         """Perform any interaction with the running target system here, or block here until the target finishes."""
 
-        # No interaction. We just run it for XX seconds.
-        # Another example would be to wait for the target to finish, e.g. via `self.target.wait()`
-        output.console_log("Running program for 20 seconds")
-        time.sleep(20)
+        # No interaction. We just run it for XX seconds while EnergiBridge measures.
+        output.console_log("Sleeping 5 seconds to measure system power consumption")
+        time.sleep(5)
 
     def stop_measurement(self, context: RunnerContext) -> None:
         """Perform any activity here required for stopping measurements."""
-        self.profiler.wait()
+        pass
 
     def stop_run(self, context: RunnerContext) -> None:
         """Perform any activity here required for stopping the run.
@@ -119,16 +122,7 @@ class RunnerConfig:
         """Parse and process any measurement data here.
         You can also store the raw measurement data under `context.run_dir`
         Returns a dictionary with keys `self.run_table_model.data_columns` and their values populated"""
-
-        # energibridge.csv - Power consumption of the whole system
-        df = pd.read_csv(context.run_dir / f"energibridge.csv")
-        run_data = {
-            'dram_energy': round(df['DRAM_ENERGY (J)'].iloc[-1] - df['DRAM_ENERGY (J)'].iloc[0], 3),
-            'package_energy': round(df['PACKAGE_ENERGY (J)'].iloc[-1] - df['PACKAGE_ENERGY (J)'].iloc[0], 3),
-            'pp0_energy': round(df['PP0_ENERGY (J)'].iloc[-1] - df['PP0_ENERGY (J)'].iloc[0], 3),
-            'pp1_energy': round(df['PP1_ENERGY (J)'].iloc[-1] - df['PP1_ENERGY (J)'].iloc[0], 3),
-        }
-        return run_data
+        return {"example_data": "test value"}
 
     def after_experiment(self) -> None:
         """Perform any activity required after stopping the experiment here
