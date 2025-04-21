@@ -5,6 +5,8 @@ from pathlib import Path
 from typing import get_origin, get_args
 import platform
 import shlex
+import os
+import ctypes
 from enum import StrEnum
 import shutil
 import subprocess
@@ -72,6 +74,12 @@ class DataSource(ABC):
             return
 
         raise RuntimeError(f"One of: {self.supported_platforms} is required for this plugin")
+    
+    def is_admin(self):
+        try:
+            return os.getuid() == 0
+        except:
+            return ctypes.windll.shell32.IsUserAdmin() == 1
 
     @property
     @abstractmethod
@@ -229,6 +237,10 @@ class DeviceSource(DataSource):
         pass
     
     @abstractmethod
-    def log(self, timeout: int = 60, logfile: Path = None):
+    def start_log(self, timeout: int = 60, logfile: Path = None):
+        pass
+
+    @abstractmethod
+    def stop_log(self, timeout: int = 60, logfile: Path = None):
         pass
 
