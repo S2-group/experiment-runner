@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from collections import UserDict
-from collections.abc import Iterable # This import is only valid >= python 3.10 I think
+from collections.abc import Iterable, Callable # This import is only valid >= python 3.10 I think
 from pathlib import Path
 from typing import get_origin, get_args
 import platform
@@ -237,10 +237,7 @@ class DeviceSource(DataSource):
         pass
     
     @abstractmethod
-    def start_log(self, timeout: int = 60, logfile: Path = None):
+    def log(self, timeout: int = 60, logfile: Path = None, finished_fn: Callable[[], bool] = None):
         pass
 
-    @abstractmethod
-    def stop_log(self, timeout: int = 60, logfile: Path = None):
-        pass
 
