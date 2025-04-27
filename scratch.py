@@ -4,6 +4,7 @@ from pathlib import Path
 import pynvml as nvml
 import time
 import inspect
+from pprint import pprint
 
 from collections.abc import Callable
 
@@ -80,6 +81,9 @@ NVML_Field_Types = enum.Enum("NVML_Field_Types",
                                 if name.startswith("NVML_FI_")
                             })
 
+class NVML_Dev_Config_Types(enum.Enum):
+    pass    
+
 # These are the setting functions
 dev_commands = ["APIRestriction",
                 "ApplicationsClocks",
@@ -95,47 +99,47 @@ dev_commands = ["APIRestriction",
                 "PersistenceMode",
                 "PowerManagementLimit"]
 
-class NVML_Dev_Config_Types(enum.Enum):
-    pass    
+# These are the static query functions
+config_stats = ["Name",
+                "UUID",
+                "Serial",
+                "Index",
+                "Architecture", 
+                "NumGpuCores",
+                "VbiosVersion",
+                "Brand",
+                "NumFans",
+                "MemoryInfo",
+                "BusType",
+                "BoardId",
+                "Attributes",
+                "BoardPartNumber",
+                "MinMaxFanSpeed",
+                "ComputeMode",
+                "PersistenceMode",
+                "PowerManagementMode",
+                "EnforcedPowerLimit",
+                "PowerManagementLimit",
+                "PowerManagementDefaultLimit",
+                "PowerManagementLimitConstraints",
+                "MaxCustomerBoostClock",
+                "PowerSource",
+                "TargetFanSpeed",
+                "TemperatureThreshold",
+                "SupportedPerformanceStates",
+                "MaxClockInfo",
+                "MinMaxClockOfPState"]
 
 class NvidiaML(DeviceSource):
     source_name = "Nvidia Management Library"
     supported_platforms = ["Linux", "Windows"]
-
-    # These are the static query functions
-    config_stats = ["Name",
-                    "UUID",
-                    "Serial",
-                    "Index",
-                    "Architecture", 
-                    "NumGpuCores",
-                    "VbiosVersion",
-                    "Brand",
-                    "NumFans",
-                    "MemoryInfo",
-                    "BusType",
-                    "BoardId",
-                    "Attributes",
-                    "BoardPartNumber",
-                    "MinMaxFanSpeed",
-                    "ComputeMode",
-                    "PersistenceMode",
-                    "PowerManagementMode",
-                    "EnforcedPowerLimit",
-                    "PowerManagementLimit",
-                    "PowerManagementDefaultLimit",
-                    "PowerManagementLimitConstraints",
-                    "MaxCustomerBoostClock",
-                    "PowerSource",
-                    "TargetFanSpeed",
-                    "TemperatureThreshold",
-                    "SupportedPerformanceStates",
-                    "MaxClockInfo",
-                    "MinMaxClockOfPState"]
     
     def __init__(self,
-                 sample_frequency: int  = 5000,
-                 out_file: Path         = "nvml_out.csv"):
+                 sample_frequency: int              = 5000,
+                 out_file: Path                     = "nvml_out.csv",
+                 queries: list[NVML_Query_Types]    = [],
+                 fields: list[NVML_Field_Types]     = [],
+                 samples: list[NVML_Sample_Types]   = []):
         super().__init__()
         
         # Initialize an instance of the library
@@ -159,8 +163,8 @@ class NvidiaML(DeviceSource):
         }
 
         # This records the latest timestamp per sample type
-        self.latest_timestamp = {}
-
+        self.latest_timestamp = {sample.name: 0 for sample in NVML_Sample_Types}
+        
     def _print_stat(self, stat, value, unit=None):
         if unit is not None:
             print(f"{(stat+" ("+unit+")").ljust(40)}: {value}")
@@ -185,18 +189,16 @@ class NvidiaML(DeviceSource):
                 return None
     
     def _query_samples(self, handle, sample_type, latest_time):
-        ret = None
         try:
             sample_type, samples = nvml.nvmlDeviceGetSamples(handle, sample_type, latest_time)
+        # In this context this just means this statistic had no valid entries
+        except nvml.NVMLError_NotFound:
+            return []
         except nvml.NVMLError as e:
-            print(f"[WARNING] Sampling failed for {NVML_Sample_Types(sample_type).name}: {e}")
-            return None
+            return e
             
-        ret = {}
-        for sample in samples:
-            ret[sample.timeStamp] = self._parse_value(sample_type, sample.sampleValue)
-
-        return ret
+        return [(sample.timeStamp, self._parse_value(sample_type, sample.sampleValue)) \
+                for sample in samples]
         
     def _query_fields(self, handle, field_ids=[]):
         values = None
@@ -212,10 +214,9 @@ class NvidiaML(DeviceSource):
         ret = {}
         for f_value in values:
             if f_value.nvmlReturn != nvml.NVML_SUCCESS:
-                #print(f"[WARNING] Error querying field value {NVML_Field_Types(f_value.fieldId).name}: {nvml.NVMLError(f_value.nvmlReturn)}")
-                ret[NVML_Field_Types(f_value.field).name] = None
+                ret[NVML_Field_Types(f_value.fieldId).name] = nvml.NVMLError(f_value.nvmlReturn)
             else:
-                ret[NVML_Field_Types(f_value.field).name] = self._parse_field_value(f_value)
+                ret[NVML_Field_Types(f_value.fieldId).name] = self._parse_field_value(f_value)
 
         return ret
 
@@ -230,12 +231,15 @@ class NvidiaML(DeviceSource):
 
         try:
             match query_type:
-                case "GetTemperature":
+                case "UtilizationRates":
+                    util = func(handle)
+                    ret = {f[0]: getattr(util, f[0]) for f in util._fields_} 
+                case "Temperature":
                     # Theres only one temperature sensor listed in the enum
                     ret = func(handle, nvml.NVML_TEMPERATURE_GPU)
                 case "FanSpeed_v2":
                     ret = {}
-                    for fan in range(self.device_config["NumFans"]):
+                    for fan in range(nvml.nvmlDeviceGetNumFans(handle)):
                         ret[fan] = func(handle, fan)
                 case "GetClockInfo":
                     ret = {}
@@ -258,7 +262,7 @@ class NvidiaML(DeviceSource):
                     ret = nvml_arch_strings[func(handle)]
                 case "MinMaxClockOfPState":
                     ret = {}
-                    for p_state in self.device_config["SupportedPerformanceStates"]:
+                    for p_state in nvml.nvmlDeviceGetSupportedPerformanceStates(handle):
                         ret[p_state] = {}
                         for val, string in nvml_clock_strings.items():
                             ret[p_state][string] = func(handle, pstate=p_state, clockType=val)
@@ -276,8 +280,7 @@ class NvidiaML(DeviceSource):
                     ret = func(handle)
 
         except nvml.NVMLError as e:
-            print(f"[WARNING] Query type {query_type} failed: {e}")
-            return None
+            return e
 
         return ret
 
@@ -286,32 +289,44 @@ class NvidiaML(DeviceSource):
                                fields:  list[NVML_Field_Types] = [], 
                                queries: list[NVML_Query_Types] = []):
         
-        self.measurements = {
-            "samples":  samples,
-            "fields": fields,
-            "queries": queries
-        }
+        # Set new measurements if present
+        if len(samples) > 0:
+            self.measurements["samples"] = samples
+        if len(fields) > 0:
+            self.measurements["fields"] = fields
+        if len(queries) > 0:
+            self.measurements["queries"] = queries
 
     # NVML supports 3 main different ways of acquiring stats:
     # Sampling, Field Values, and deviceGet queries
     # We support all of them, but it does require knowing 
     # which sources you need, and which are supported by the device
     def measure(self):
-        samples = self.measurements["samples"]
         fields = self.measurements["fields"]
-        queries = self.measurements["queries"]
 
         results = {}
-        for sample in samples:
-            results[sample.name] = self._query_samples(self.device_handle, sample.value, self.latest_timestamp[sample])
-            self.latest_timestamp[sample] = None
+        for sample in self.measurements["samples"]:
+            timestamp = int(time.time_ns() // 1000)
+            results[sample.name] = self._query_samples(self.device_handle, sample.value, self.latest_timestamp[sample.name])
 
+            # Only remember valid timestamps
+            if  not isinstance(results[sample.name], nvml.NVMLError) \
+                and results[sample.name] != []:
+                self.latest_timestamp[sample.name] = max(list(map(lambda x: x[0], results[sample.name])))
 
-        results |= self._query_fields(self.device_handle, list(map(lambda x: x.value, fields)))
-
-        for query in queries:
-            results[query.name] = self._query_device(self.device_handle, query.value)
+            # Wrap errors with a timestamp
+            if isinstance(results[sample.name], nvml.NVMLError):
+                results[sample.name] = (timestamp, results[sample.name])
         
+        timestamp = int(time.time_ns() // 1000)
+        field_values = list(map(lambda x: x.value, fields))
+        results |= { key: (timestamp, value)
+                     for key, value in self._query_fields(self.device_handle, field_values).items()}
+
+        for query in self.measurements["queries"]:
+            timestamp = int(time.time_ns() // 1000)
+            results[query.name] = (timestamp, self._query_device(self.device_handle, query.value))
+            
         return results
 
     def list_devices(self, print_dev=False):
@@ -320,7 +335,7 @@ class NvidiaML(DeviceSource):
             handle = nvml.nvmlDeviceGetHandleByIndex(dev_idx)
             devices.append({})
             
-            for stat in self.config_stats:
+            for stat in config_stats:
                 if "fan" in stat.lower() and devices[dev_idx].get("NumFans") == 0:
                     continue
 
@@ -368,7 +383,7 @@ class NvidiaML(DeviceSource):
             raise RuntimeError(f"Could not get device with {str(id_type)} {dev_id}: {e}")
         
         self.device_config = {query: self._query_device(self.device_handle, query) \
-                              for query in self.config_stats}
+                              for query in config_stats}
 
     def close_device(self):
         nvml.nvmlShutdown()
@@ -392,26 +407,43 @@ class NvidiaML(DeviceSource):
             and len(self.measurements["samples"]) == 0:
             raise RuntimeError("[ERROR] No measurements are are set to be collected, please call set_measurements()")
         
-        log_data = {}
-
         if logfile:
             self.logfile = logfile
+
+        log_data = {data_type.name: [] 
+                    for measure in self.measurements.values() 
+                    for data_type in measure}
 
         print('Logging...')
         
         timeout_start = time.time()     
-        finished_checker = finished_fn if finished_fn != None else lambda: time.time() < timeout_start + timeout
+        finished_checker = finished_fn if finished_fn != None \
+                           else lambda: time.time() < timeout_start + timeout
         
-        # Ensure the PicoLog always gets closed
         while finished_checker():
-            res = self.measure()
-
-            # TODO: Add the results to the big array log_data
-            for res, value in res.items():
-                log_data[res].append(value)
+            for res_type, value in self.measure().items():
+                # Only set an error when we dont have valid values
+                if  (isinstance(log_data[res_type], nvml.NVMLError)                         \
+                    or (isinstance(log_data[res_type], list) and len(log_data[res_type]) == 0))  \
+                    and isinstance(value[1], nvml.NVMLError):
+                    log_data[res_type] = value[1]
+                    continue
+                
+                # Combine all results into the log
+                if isinstance(value, list):
+                    log_data[res_type].extend(value)
+                else:
+                    log_data[res_type].append(value)
 
             # Ensure measurement frequency
             time.sleep(self.sample_frequency/1000)
+
+        # Convert all errors into strings 
+        log_data = {key: value if not isinstance(value, nvml.NVMLError) else str(value)  \
+                   for key, value in log_data.items()}
+        
+        pprint(log_data)
+        # TODO: Log the data into a file
 
     def parse_log(self):
         # TODO: Csv read in log
@@ -420,10 +452,8 @@ class NvidiaML(DeviceSource):
 def main():
     source = NvidiaML()
     source.open_device(dev_id=0, id_type=NVML_ID_Types.NVML_ID_INDEX)
-    #source.list_devices(print_dev=True)
-    source._query_device(source.device_handle, "PowerUsage")
-    #source._query_fields(source.device_handle, [nvml.NVML_FI_DEV_POWER_INSTANT])
-    #print(source._query_samples(source.device_handle, nvml.NVML_MODULE_POWER_SAMPLES, 0))
+    source.list_devices(print_dev=True)
+    source.log(timeout=10)
 
 if __name__ == "__main__":
     main()
