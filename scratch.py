@@ -4,57 +4,62 @@ from pathlib import Path
 import pynvml as nvml
 import time
 import inspect
+import json
 from pprint import pprint
-
 from collections.abc import Callable
 
 sys.path.insert(0, "./experiment-runner/Plugins/Profilers/")
 from DataSource import CLISource, ParameterDict, DeviceSource
 
-nvml_clock_strings = {
-    nvml.NVML_CLOCK_GRAPHICS:   "GraphicsClock",
-    nvml.NVML_CLOCK_SM:         "StramingMultiproessorClock",
-    nvml.NVML_CLOCK_MEM:        "MemoryClock",
-    nvml.NVML_CLOCK_VIDEO:      "VideoClock",
-}
+# Define a custom enum wrapper to help generating enums from the nvml enums
+class NVML_EnumMeta(enum.EnumType):
+    def __call__(cls, *args, prefix=None, suffix=None, **kwargs):
+        # We are not creating a new enum here, execute normally
+        if prefix is None and suffix is None:
+            return super().__call__(*args, **kwargs)
+        
+        # Interpose on enum creation to have nice strings
+        assert(prefix != None or suffix != None)
 
-nvml_powersource_strings = {
-    nvml.NVML_POWER_SOURCE_AC:          "AC",
-    nvml.NVML_POWER_SOURCE_BATTERY:     "Battery",
-    nvml.NVML_POWER_SOURCE_UNDERSIZED:  "Undersized",
-}
+        cls.name_prefix = prefix
+        cls.name_suffix = suffix
+        
+        members = {name: val 
+                   for name, val in inspect.getmembers(nvml) 
+                   if (True if not prefix else name.startswith(prefix))
+                   and (True if not suffix else name.endswith(suffix))}
 
-nvml_arch_strings = {
-    nvml.NVML_DEVICE_ARCH_KEPLER:   "Kepler",
-    nvml.NVML_DEVICE_ARCH_MAXWELL:  "Maxwell",
-    nvml.NVML_DEVICE_ARCH_PASCAL:   "Pascal",
-    nvml.NVML_DEVICE_ARCH_VOLTA:    "Volta",
-    nvml.NVML_DEVICE_ARCH_TURING:   "Turing",
-    nvml.NVML_DEVICE_ARCH_AMPERE:   "Ampere",
-    nvml.NVML_DEVICE_ARCH_ADA:      "Ada",
-    nvml.NVML_DEVICE_ARCH_HOPPER:   "Hopper",
-    nvml.NVML_DEVICE_ARCH_BLACKWELL:"Blackwell",
-    nvml.NVML_DEVICE_ARCH_T23X:     "Orin",
-    nvml.NVML_DEVICE_ARCH_UNKNOWN:  "Unknown"
-}
+        return super().__call__(*args, names=members, **kwargs)
 
-# Need these for legacy temperature support
-nvml_tempthr_strings = {
-    nvml.NVML_TEMPERATURE_THRESHOLD_SHUTDOWN:       "Shutdown Temp",
-    nvml.NVML_TEMPERATURE_THRESHOLD_SLOWDOWN:       "Slowdown Temp",
-    nvml.NVML_TEMPERATURE_THRESHOLD_GPU_MAX:        "GPU Max Temp",
-    nvml.NVML_TEMPERATURE_THRESHOLD_MEM_MAX:        "Memory Max Temp",
-    nvml.NVML_TEMPERATURE_THRESHOLD_ACOUSTIC_MIN:   "Acoustic Min Temp",
-    nvml.NVML_TEMPERATURE_THRESHOLD_ACOUSTIC_CURR:  "Acoustic Current Temp",
-    nvml.NVML_TEMPERATURE_THRESHOLD_ACOUSTIC_MAX:   "Acoustic Max Temp",
-}
+class NVML_Enum(enum.Enum, metaclass=NVML_EnumMeta):
+    @property
+    def name(self):
+        name = self._name_
+        if self.name_prefix:
+            name = name.lstrip(self.name_prefix)
+        if self.name_suffix:
+            name = name.rstrip(self.name_suffix)
 
-class NVML_ID_Types(enum.Enum):
+        return name.lower()
+
+# There are a lot of these, extract then automatically
+NVML_Field              = NVML_Enum("NVML_Field", prefix="NVML_FI_DEV_")
+NVML_Sample             = NVML_Enum("NVML_Sample", prefix="NVML_", suffix="_SAMPLES")
+NVML_Clock              = NVML_Enum("NVML_Clock", prefix="NVML_CLOCK_")
+NVML_PowerSource        = NVML_Enum("NVML_PowerSource", prefix="NVML_POWER_SOURCE_")
+NVML_Arch               = NVML_Enum("NVML_Arch", prefix="NVML_DEVICE_ARCH_")
+NVML_TempThreshold      = NVML_Enum("NVML_TempThreshold", prefix="NVML_TEMPERATURE_THRESHOLD_")
+NVML_API_Restriction    = NVML_Enum("NVML_API_Restriction", prefix="NVML_RESTRICTED_API_SET_")
+NVML_Enable_State       = NVML_Enum("NVML_Enable_State", prefix="NVML_FEATURE_")
+NVML_Compute_Mode       = NVML_Enum("NVML_Compute_Mode", prefix="NVML_COMPUTEMODE_")
+NVML_GPU_Operation_Mode = NVML_Enum("NVML_GPU_Operation_Mode", prefix="NVML_GOM_")
+
+class NVML_IDs(enum.Enum):
     NVML_ID_INDEX   = 0
     NVML_ID_SERIAL  = 1
     NVML_ID_UUID    = 2
 
-class NVML_Query_Types(enum.Enum):
+class NVML_Query(enum.Enum):
     NVML_POWER_USAGE    = "PowerUsage"
     NVML_TOTAL_ENERGY   = "TotalEnergyConsumption"
     NVML_TEMPERATURE    = "Temperature"
@@ -62,42 +67,6 @@ class NVML_Query_Types(enum.Enum):
     NVML_UTILIZATION    = "UtilizationRates"
     NVML_PSTATE         = "PerformanceState"
     NVML_CLOCK          = "GetClockInfo"
-
-class NVML_Sample_Types(enum.Enum):
-    NVML_TOTAL_POWER     = nvml.NVML_TOTAL_POWER_SAMPLES
-    NVML_GPU_UTILIZATION = nvml.NVML_GPU_UTILIZATION_SAMPLES
-    NVML_MEM_UTILIZATION = nvml.NVML_MEMORY_UTILIZATION_SAMPLES
-    NVML_ENC_UTILIZATION = nvml.NVML_ENC_UTILIZATION_SAMPLES
-    NVML_DEC_UTILIZATION = nvml.NVML_DEC_UTILIZATION_SAMPLES
-    NVML_PROCESSOR_CLK   = nvml.NVML_PROCESSOR_CLK_SAMPLES
-    NVML_MEMORY_CLK      = nvml.NVML_MEMORY_CLK_SAMPLES
-    NVML_MODULE_POWER    = nvml.NVML_MODULE_POWER_SAMPLES
-
-# There are a lot of these, extract then automatically
-NVML_Field_Types = enum.Enum("NVML_Field_Types",
-                            {
-                                name: val 
-                                for name, val in inspect.getmembers(nvml) 
-                                if name.startswith("NVML_FI_")
-                            })
-
-class NVML_Dev_Config_Types(enum.Enum):
-    pass    
-
-# These are the setting functions
-dev_commands = ["APIRestriction",
-                "ApplicationsClocks",
-                "ComputeMode",
-                "ConfComputeUnprotectedMemSize",
-                "EccMode",
-                "FanSpeed",
-                "GpcClkVfOffset",
-                "GpuLockedClocks",
-                "GpuOperationMode",
-                "MemClkVfOffset",
-                "MemoryLockedClocks",
-                "PersistenceMode",
-                "PowerManagementLimit"]
 
 # These are the static query functions
 config_stats = ["Name",
@@ -130,6 +99,22 @@ config_stats = ["Name",
                 "MaxClockInfo",
                 "MinMaxClockOfPState"]
 
+NVML_CONFIG_PARAMETERS = {
+    "APIRestriction":                   (NVML_API_Restriction, NVML_Enable_State),
+    "ApplicationsClocks":               (int, int),
+    "ComputeMode":                      NVML_Compute_Mode,
+    "ConfComputeUnprotectedMemSize":    int,
+    "EccMode":                          NVML_Enable_State,
+    "FanSpeed_v2":                      (int, int),
+    "GpcClkVfOffset":                   int,
+    "GpuLockedClocks":                  (int, int),
+    "GpuOperationMode":                 NVML_GPU_Operation_Mode,
+    "MemClkVfOffset":                   int,
+    "MemoryLockedClocks":               (int, int),
+    "PersistenceMode":                  NVML_Enable_State,
+    "PowerManagementLimit":             int
+}
+
 class NvidiaML(DeviceSource):
     source_name = "Nvidia Management Library"
     supported_platforms = ["Linux", "Windows"]
@@ -137,9 +122,10 @@ class NvidiaML(DeviceSource):
     def __init__(self,
                  sample_frequency: int              = 5000,
                  out_file: Path                     = "nvml_out.csv",
-                 queries: list[NVML_Query_Types]    = [],
-                 fields: list[NVML_Field_Types]     = [],
-                 samples: list[NVML_Sample_Types]   = []):
+                 queries: list[NVML_Query]    = [NVML_Query.NVML_UTILIZATION,
+                                                 NVML_Query.NVML_POWER_USAGE],
+                 fields: list[NVML_Field]     = [],
+                 samples: list[NVML_Sample]   = []):
         super().__init__()
         
         # Initialize an instance of the library
@@ -149,21 +135,15 @@ class NvidiaML(DeviceSource):
         self.sample_frequency = sample_frequency
         self.logfile = out_file
         
-        # Configure a few default stats to collect
+        # Configure which measurements will be made by nvml
         self.measurements = {
-            "queries": [NVML_Query_Types.NVML_UTILIZATION, 
-                        NVML_Query_Types.NVML_PSTATE, 
-                        NVML_Query_Types.NVML_TEMPERATURE,
-                        NVML_Query_Types.NVML_POWER_USAGE], 
-            "fields": [NVML_Field_Types. NVML_FI_DEV_ENERGY,
-                       NVML_Field_Types.NVML_FI_DEV_MEMORY_TEMP],
-            "samples": [NVML_Sample_Types.NVML_PROCESSOR_CLK,
-                        NVML_Sample_Types.NVML_MEMORY_CLK,
-                        NVML_Sample_Types.NVML_MODULE_POWER]
+            "queries": queries, 
+            "fields": fields,
+            "samples": samples
         }
 
         # This records the latest timestamp per sample type
-        self.latest_timestamp = {sample.name: 0 for sample in NVML_Sample_Types}
+        self.latest_timestamp = {sample.name: 0 for sample in NVML_Sample}
         
     def _print_stat(self, stat, value, unit=None):
         if unit is not None:
@@ -214,9 +194,9 @@ class NvidiaML(DeviceSource):
         ret = {}
         for f_value in values:
             if f_value.nvmlReturn != nvml.NVML_SUCCESS:
-                ret[NVML_Field_Types(f_value.fieldId).name] = nvml.NVMLError(f_value.nvmlReturn)
+                ret[NVML_Field(f_value.fieldId).name] = nvml.NVMLError(f_value.nvmlReturn)
             else:
-                ret[NVML_Field_Types(f_value.fieldId).name] = self._parse_field_value(f_value)
+                ret[NVML_Field(f_value.fieldId).name] = self._parse_field_value(f_value)
 
         return ret
 
@@ -243,8 +223,8 @@ class NvidiaML(DeviceSource):
                         ret[fan] = func(handle, fan)
                 case "GetClockInfo":
                     ret = {}
-                    for val, string in nvml_clock_strings.items():
-                        ret[string] = func(handle, val)
+                    for clk_type in NVML_Clock:
+                        ret[clk_type.name] = func(handle, clk_type.value)
                 case "TemperatureThreshold":
                     ret = self._query_fields(handle, [nvml.NVML_FI_DEV_TEMPERATURE_MEM_MAX_TLIMIT,
                                                       nvml.NVML_FI_DEV_TEMPERATURE_GPU_MAX_TLIMIT,
@@ -253,29 +233,29 @@ class NvidiaML(DeviceSource):
                     
                     # The new method has failed, revert to depricated features
                     if ret == {}:
-                        for val, string in nvml_tempthr_strings.items():
+                        for temp_type in NVML_TempThreshold:
                             try:
-                                ret[string] = func(handle, val)
+                                ret[temp_type.name] = func(handle, temp_type.value)
                             except:
                                 pass
                 case "Architecture":
-                    ret = nvml_arch_strings[func(handle)]
+                    ret = NVML_Arch(func(handle)).name
                 case "MinMaxClockOfPState":
                     ret = {}
                     for p_state in nvml.nvmlDeviceGetSupportedPerformanceStates(handle):
                         ret[p_state] = {}
-                        for val, string in nvml_clock_strings.items():
-                            ret[p_state][string] = func(handle, pstate=p_state, clockType=val)
+                        for clk_type in NVML_Clock:
+                            ret[p_state][clk_type.name] = func(handle, pstate=p_state, clockType=clk_type.value)
                 case "TargetFanSpeed":
                     ret = {}
                     for i in range(0, nvml.nvmlDeviceGetNumFans(handle)):
                         ret[i] = func(handle, i)
                 case "PowerSource":
-                    ret = nvml_powersource_strings[func(handle)]
+                    ret = NVML_PowerSource(func(handle)).name
                 case "MaxClockInfo" | "MaxCustomerBoostClock":
                     ret = {}
-                    for val, string in nvml_clock_strings.items():
-                        ret[string] = func(handle, val)
+                    for clk_type in NVML_Clock:
+                        ret[clk_type.name] = func(handle, clk_type.value)
                 case _:
                     ret = func(handle)
 
@@ -285,9 +265,9 @@ class NvidiaML(DeviceSource):
         return ret
 
     # Very important function, this sets what stats are measured when log is called
-    def set_measurements(self, samples: list[NVML_Sample_Types] = [],
-                               fields:  list[NVML_Field_Types] = [], 
-                               queries: list[NVML_Query_Types] = []):
+    def set_measurements(self, samples: list[NVML_Sample] = [],
+                               fields:  list[NVML_Field] = [], 
+                               queries: list[NVML_Query] = []):
         
         # Set new measurements if present
         if len(samples) > 0:
@@ -365,19 +345,19 @@ class NvidiaML(DeviceSource):
         
         return devices
 
-    def open_device(self, dev_id, id_type: NVML_ID_Types):
+    def open_device(self, dev_id, id_type: NVML_IDs):
         # A bit more descriptive than the nvidia errors
-        if id_type == NVML_ID_Types.NVML_ID_INDEX and \
+        if id_type == NVML_IDs.NVML_ID_INDEX and \
             int(dev_id) >= nvml.nvmlDeviceGetCount():
             raise RuntimeError(f"GPU device index ({int(dev_id)}) larger than the number of devices {nvml.nvmlDeviceGetCount()}")
         
         try:
             match id_type:
-                case NVML_ID_Types.NVML_ID_SERIAL:
+                case NVML_IDs.NVML_ID_SERIAL:
                     self.device_handle = nvml.nvmlDeviceGetHandleBySerial(str(dev_id))
-                case NVML_ID_Types.NVML_ID_UUID:
+                case NVML_IDs.NVML_ID_UUID:
                     self.device_handle = nvml.nvmlDeviceGetHandleByUUID(str(dev_id))
-                case NVML_ID_Types.NVML_ID_INDEX:
+                case NVML_IDs.NVML_ID_INDEX:
                     self.device_handle = nvml.nvmlDeviceGetHandleByIndex(int(dev_id))
         except nvml.NVMLError as e:
             raise RuntimeError(f"Could not get device with {str(id_type)} {dev_id}: {e}")
@@ -443,15 +423,23 @@ class NvidiaML(DeviceSource):
                    for key, value in log_data.items()}
         
         pprint(log_data)
-        # TODO: Log the data into a file
+        
+        if self.logfile:
+            with open(self.logfile, "w") as f:
+                json.dump(log_data, f)
+        
+        return log_data
 
-    def parse_log(self):
-        # TODO: Csv read in log
-        pass
+    @staticmethod
+    def parse_log(logfile):
+        with open(logfile, "r") as f:
+            log_data = json.load(f)
+        
+        return log_data
 
 def main():
     source = NvidiaML()
-    source.open_device(dev_id=0, id_type=NVML_ID_Types.NVML_ID_INDEX)
+    source.open_device(dev_id=0, id_type=NVML_IDs.NVML_ID_INDEX)
     source.list_devices(print_dev=True)
     source.log(timeout=10)
 
