@@ -89,7 +89,7 @@ class DataSource(ABC):
 
     @staticmethod
     @abstractmethod
-    def parse_log():
+    def parse_log(logfile):
         pass
 
 
@@ -188,12 +188,13 @@ class CLISource(DataSource):
         
         self._validate_start()
 
-    def stop(self):
+    def stop(self, wait=False):
         if not self.process:
             return
 
         try:
-            self.process.terminate()
+            if not wait:
+                self.process.terminate()
             stdout, stderr = self.process.communicate(timeout=5)
 
         except Exception as e:
