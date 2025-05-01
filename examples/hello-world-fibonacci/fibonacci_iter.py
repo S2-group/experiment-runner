@@ -1,4 +1,5 @@
 # Implementation by Mandy Wong (https://realpython.com/fibonacci-sequence-python/)
+import sys
 
 def fib(n):
 	a, b = 0, 1
@@ -6,5 +7,5 @@ def fib(n):
 		a, b = b, a + b
 	return a
 
-for n in range(10000):
+for n in range(int(sys.argv[1])):
 	print(fib(n))

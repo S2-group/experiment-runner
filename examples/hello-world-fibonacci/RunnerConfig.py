@@ -55,11 +55,11 @@ class RunnerConfig:
         """Create and return the run_table model here. A run_table is a List (rows) of tuples (columns),
         representing each run performed"""
         factor1 = FactorModel("fib_type", ['iter', 'mem', 'rec'])
-        factor2 = FactorModel("problem_size", [10, 100, 1000, 10000])
+        factor2 = FactorModel("problem_size", [10, 20, 30])
         self.run_table_model = RunTableModel(
             factors=[factor1, factor2],
             repetitions = 3,
-            data_columns=["total_power", "runtime", "avg_cpu", "avg_mem"]
+            data_columns=["total_power (J)", "runtime (sec)", "avg_mem (bytes)"]
         )
         return self.run_table_model
 
@@ -84,8 +84,10 @@ class RunnerConfig:
         fib_type = context.run_variation["fib_type"]
         problem_size = context.run_variation["problem_size"]
 
-        self.profiler = EnergiBridge(target_program=f"./fibonacci_{fib_type}.py {problem_size}")
-        
+        EnergiBridge.source_name = "../EnergiBridge/target/release/energibridge"
+        self.profiler = EnergiBridge(target_program=f"python examples/hello-world-fibonacci/fibonacci_{fib_type}.py {problem_size}",
+                                     out_file=context.run_dir / "energibridge.csv")
+
         self.profiler.start()
 
     def interact(self, context: RunnerContext) -> None:
@@ -106,13 +108,12 @@ class RunnerConfig:
         You can also store the raw measurement data under `context.run_dir`
         Returns a dictionary with keys `self.run_table_model.data_columns` and their values populated"""
         
-        eb_log = self.profiler.parse_log(context.run_dir / self.profiler.logfile)
-        eb_summary = self.profiler.parse_log(context.run_dir / self.profiler.summaryfile)
-
-        return {"total_power": 0, 
-                "runtime": 0, 
-                "avg_cpu": 0, 
-                "avg_mem": 0}
+        eb_log, eb_summary = self.profiler.parse_log(self.profiler.logfile, 
+                                                     self.profiler.summary_logfile)
+        
+        return {"total_power (J)": eb_summary["total_joules"], 
+                "runtime (sec)": eb_summary["runtime_seconds"], 
+                "total_mem (bytes)": list(eb_log["TOTAL_MEMORY"].values())[-1]}
 
     def after_experiment(self) -> None:
         """Perform any activity required after stopping the experiment here
