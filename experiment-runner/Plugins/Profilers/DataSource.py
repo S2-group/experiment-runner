@@ -10,6 +10,8 @@ import ctypes
 from enum import StrEnum
 import shutil
 import subprocess
+import threading
+import queue
 
 class ParameterDict(UserDict):
     def valid_key(self, key):
@@ -36,7 +38,7 @@ class ParameterDict(UserDict):
     def __getitem__(self, key):
         if not self.valid_key(key):
             raise RuntimeError("Unexpected key type, expected `str` or `list[str]`")
-
+        
         if isinstance(key, str):
             key = self.str_to_tuple(key)
 
@@ -57,7 +59,7 @@ class ParameterDict(UserDict):
     def __contains__(self, key):
         if isinstance(key, str):
             key = self.str_to_tuple(key)
-
+        
         for params, val in self.data.items():
             if set(key).issubset(params):
                 return True
@@ -67,7 +69,7 @@ class ParameterDict(UserDict):
 class DataSource(ABC):
     def __init__(self):
         self._validate_platform()
-        self.logfile = None
+        self._logfile = None
 
     def _validate_platform(self):
         if platform.system() in self.supported_platforms:
@@ -95,18 +97,29 @@ class DataSource(ABC):
     def __del__(self):
         pass
 
+    @abstractmethod
+    def start(self):
+        pass
+
+    @abstractmethod
+    def stop(self):
+        pass
+
     @staticmethod
     @abstractmethod
     def parse_log():
         pass
 
+class Logfile:
+    def __init__(self, file: str):
+        self.file = file
 
 class CLISource(DataSource):
     def __init__(self):
-        super().__init__()
-
         self.process = None
         self.args = None
+
+        super().__init__()
 
     def __del__(self):
         if self.process:
@@ -164,6 +177,8 @@ class CLISource(DataSource):
         for p, v in self.args.items():
             if v == None:
                 cmd += f" {p}"
+            elif isinstance(v, Logfile):
+                cmd += f" {p} {v.file}"
             elif isinstance(v, Iterable) and not (isinstance(v, StrEnum) or isinstance(v, str)):
                 cmd += f" {p} {",".join(map(str, v))}"
             else:
@@ -214,7 +229,14 @@ class CLISource(DataSource):
 class DeviceSource(DataSource):
     def __init__(self):
         super().__init__()
+
         self.device_handle = None
+        self.process = None
+        self.sample_frequency=None
+
+        # Create the pipe that implements graceful shutdown
+        self.stop_thread = threading.Event()
+        self.thread_queue = queue.Queue(maxsize=1)
 
     def __del__(self):
         if self.device_handle:
@@ -235,9 +257,53 @@ class DeviceSource(DataSource):
     @abstractmethod
     def set_mode(self):
         pass
-    
+
     @abstractmethod
-    def log(self, timeout: int = 60, logfile: Path = None, finished_fn: Callable[[], bool] = None):
-        pass
+    def log(self):
+        if not self.device_handle:
+            raise RuntimeError("A device must be selected before it can be queried")
+        
+        if threading.current_thread().name != "DeviceWorker":
+            raise RuntimeError("Dont call log directly, call start() to begin logging")
+
+    def start(self):
+        if self.process:
+            raise RuntimeError("This module has already been started. Call stop() to start again")
+
+        try:
+            self.process = threading.Thread(target=self.log,
+                                            name="DeviceWorker")
+
+            self.process.start()
+        except Exception as e:
+            self.process.terminate()
+            raise RuntimeError(f"Could not start logging process: {e}")
+
+    def stop(self):
+        if not self.process:
+            return
+
+        if not self.process.is_alive():
+            raise RuntimeError("Process terminated early, check configuration")
+        
+        ret = None
+        timeout = self.sample_frequency * 2
+        try:
+            # Send the shutdown signal
+            self.stop_thread.set()
+            ret = self.thread_queue.get(block=True, timeout=timeout)
+            self.thread_queue.task_done()
+
+            self.process.join(timeout)
+        except:
+            raise RuntimeError("An error occured while joining the thread")
+
+        if self.process.is_alive():
+            raise RuntimeError("The device thread could not be stopped")
+
+        self.stop_thread.clear()
+        self.process = None
+
+        return ret
 
 

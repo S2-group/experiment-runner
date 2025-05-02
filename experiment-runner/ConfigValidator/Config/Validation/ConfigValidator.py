@@ -22,30 +22,30 @@ class ConfigValidator:
                                                     f"\n\n{ConfigAttributeInvalidError(name, value, expected)}"
             ConfigValidator.error_found = True
     
-    # Verifies that an energybridge executable is present, and can be executed without error
+ # Verifies that an energybridge executable is present, and can be executed without error
     @staticmethod
-    def __validate_energibridge(measure_enabled, eb_path, eb_logfile):
+    def __validate_energibridge(config):
         # Do nothing if its not enabled
-        if not measure_enabled:
+        if not config.self_measure:
             return
 
         if  not platform.system() == "Linux"    \
-            or not os.path.exists(eb_path)      \
-            or not os.access(eb_path, os.X_OK):
+            or not os.path.exists(config.self_measure_bin)      \
+            or not os.access(config.self_measure_bin, os.X_OK):
 
             ConfigValidator.error_found = True
             ConfigValidator \
             .config_values_or_exception_dict["EnergiBridge"] = "EnergiBridge executable was not present or valid"
         
-        if  eb_logfile \
-            and not is_path_exists_or_creatable_portable(eb_logfile):
+        if  config.self_measure_logfile \
+            and not is_path_exists_or_creatable_portable(config.self_measure_logfile):
             ConfigValidator.error_found = True
             ConfigValidator \
-            .config_values_or_exception_dict["EnergiBridge"] = f"EnergiBridge logfile ({eb_logfile}) was not a valid path"
+            .config_values_or_exception_dict["EnergiBridge"] = f"EnergiBridge logfile ({config.self_measure_logfile}) was not a valid path"
         
         # Test run to see if energibridge works
         try:
-            eb_args = [eb_path, "--summary", "-o", "/dev/null", "--", "sleep", "0.5"]
+            eb_args = [config.self_measure_bin, "--summary", "-o", "/dev/null", "--", "sleep", "0.5"]
             p = subprocess.Popen(eb_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
             stdout, stderr = p.communicate(timeout=5)
@@ -66,7 +66,6 @@ class ConfigValidator:
             ConfigValidator.error_found = True
             ConfigValidator \
                     .config_values_or_exception_dict["EnergiBridge"] = f"Exception durring EnergiBridge test:\n{e}"
-
         
     @staticmethod
     def validate_config(config: RunnerConfig):
@@ -112,10 +111,7 @@ class ConfigValidator:
                             (lambda a, b: is_path_exists_or_creatable_portable(a))
                         )
         
-        ConfigValidator.__validate_energibridge(config.self_measure, 
-                                                config.self_measure_bin, 
-                                                config.self_measure_logfile
-                        )
+        ConfigValidator.__validate_energibridge(config)
 
         # Display config in user-friendly manner, including potential errors found
         print(

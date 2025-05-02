@@ -5,6 +5,7 @@ import json
 import re
 import pynvml as nvml
 from pathlib import Path
+import threading
 from collections.abc import Callable
 
 from Plugins.Profilers.DataSource import DeviceSource, ParameterDict
@@ -40,6 +41,7 @@ class NVML_Enum(enum.Enum, metaclass=NVML_EnumMeta):
 
         return name.lower()
 
+# Split the name on capital letters, capitalize the words and and underscores
 def nvml_fn_to_name(func_name):
     return "NVML_" + "_".join(list(map(lambda x: x.upper(),
             re.findall("[A-Z](?:[a-z]+|[A-Z]*(?=[A-Z]|$))", func_name.split("_")[0]))))
@@ -120,7 +122,13 @@ class NvidiaML(DeviceSource):
         self.device_config = None
         self.sample_frequency = sample_frequency
         self.logfile = out_file
-        
+        self.settings = settings
+        self.handle_method = []
+
+        # Threads require their own handle
+        self.thread_handle = None
+        self.main_handle  = None
+
         # Configure which measurements will be made by nvml
         self.measurements = {
             "queries": queries, 
@@ -130,11 +138,21 @@ class NvidiaML(DeviceSource):
 
         # This records the latest timestamp per sample type
         self.latest_timestamp = {sample.name: 0 for sample in NVML_Sample}
+    
+    @property
+    def device_handle(self):
+        if threading.current_thread().name == "DeviceWorker":
+            return self.main_handle
+        else:
+            return self.thread_handle
 
-        # Set any initial settings
-        if len(settings) > 0:
-            self.set_mode(settings)
-        
+    @device_handle.setter
+    def device_handle(self, value):
+        if threading.current_thread().name == "DeviceWorker":
+            self.main_handle = value
+        else:
+            self.thread_handle = value
+
     def _print_stat(self, stat, value, unit=None):
         if unit is not None:
             print(f"{(stat+" ("+unit+")").ljust(40)}: {value}")
@@ -161,9 +179,6 @@ class NvidiaML(DeviceSource):
     def _query_samples(self, handle, sample_type: NVML_Sample, latest_time: int):
         try:
             sample_type, samples = nvml.nvmlDeviceGetSamples(handle, sample_type, latest_time)
-        # In this context this just means this statistic had no valid entries
-        except nvml.NVMLError_NotFound:
-            return []
         except nvml.NVMLError as e:
             return e
             
@@ -177,7 +192,6 @@ class NvidiaML(DeviceSource):
         
         # Convery enums to values
         field_ids = list(map(lambda x: x.value, field_ids));
-
         try:
             # Clear the values first, so we know they are fresh
             nvml.nvmlDeviceClearFieldValues(handle, field_ids)
@@ -303,9 +317,8 @@ class NvidiaML(DeviceSource):
     # We support all of them, but it does require knowing 
     # which sources you need, and which are supported by the device
     def measure(self):
-        fields = self.measurements["fields"]
-
         results = {}
+
         for sample in self.measurements["samples"]:
             timestamp = int(time.time_ns() // 1000)
             results[sample.name] = self._query_samples(self.device_handle, sample.value, self.latest_timestamp[sample.name])
@@ -319,10 +332,10 @@ class NvidiaML(DeviceSource):
             if isinstance(results[sample.name], nvml.NVMLError):
                 results[sample.name] = (timestamp, results[sample.name])
         
+        fields = self.measurements["fields"]
         timestamp = int(time.time_ns() // 1000)
-        field_values = list(map(lambda x: x.value, fields))
         results |= { key: (timestamp, value)
-                     for key, value in self._query_fields(self.device_handle, field_values).items()}
+                     for key, value in self._query_fields(self.device_handle, fields).items()}
 
         for query in self.measurements["queries"]:
             timestamp = int(time.time_ns() // 1000)
@@ -383,6 +396,12 @@ class NvidiaML(DeviceSource):
         except nvml.NVMLError as e:
             raise RuntimeError(f"Could not get device with {str(id_type)} {dev_id}: {e}")
         
+        # Set any initial settings
+        if len(self.settings) > 0:
+            self.set_mode(self.settings)
+        
+        # Maintain some state
+        self.handle_method = [dev_id, id_type]
         self.device_config = {query: self._query_device(self.device_handle, query) \
                               for query in NVML_Static_Query}
 
@@ -391,37 +410,25 @@ class NvidiaML(DeviceSource):
         self.device_config = None
         self.device_handle = None
 
-    def log(self, timeout: int = 60, logfile: Path = None, finished_fn: Callable[[], bool] = None):
-        if not self.device_handle:
-            raise RuntimeError("A device must be selected before it can be queried")
+    def log(self):
+        # NVML Needs to be set up in each participating thread
+        nvml.nvmlInit()
+        self.open_device(*self.handle_method)
+        
+        # Perform some basic checks and initialization
+        super().log()
         
         if  len(self.measurements["queries"]) == 0      \
             and len(self.measurements["fields"]) == 0   \
             and len(self.measurements["samples"]) == 0:
             raise RuntimeError("[ERROR] No measurements are are set to be collected, please call set_measurements()")
         
-        if logfile:
-            self.logfile = logfile
-
         log_data = {data_type.name: [] 
                     for measure in self.measurements.values() 
                     for data_type in measure}
-
-        print('NVML Logging...')
         
-        timeout_start = time.time()     
-        finished_checker = finished_fn if finished_fn != None \
-                           else lambda: time.time() < timeout_start + timeout
-        
-        while finished_checker():
+        while not self.stop_thread.is_set():
             for res_type, value in self.measure().items():
-                # Only set an error when we dont have valid values
-                if  (isinstance(log_data[res_type], nvml.NVMLError)                         \
-                    or (isinstance(log_data[res_type], list) and len(log_data[res_type]) == 0))  \
-                    and isinstance(value[1], nvml.NVMLError):
-                    log_data[res_type] = value[1]
-                    continue
-                
                 # Combine all results into the log
                 if isinstance(value, list):
                     log_data[res_type].extend(value)
@@ -430,21 +437,36 @@ class NvidiaML(DeviceSource):
 
             # Ensure measurement frequency
             time.sleep(self.sample_frequency/1000)
-
-        # Convert all errors into strings 
-        log_data = {key: value if not isinstance(value, nvml.NVMLError) else str(value)  \
-                   for key, value in log_data.items()}
+        
+        # Convert errors to strings
+        for category, values in log_data.items():
+            log_data[category] = list(map(lambda x: (x[0], str(x[1])) if isinstance(x[1], nvml.NVMLError) else x, values))
         
         if self.logfile:
             with open(self.logfile, "w") as f:
                 json.dump(log_data, f)
         
-        return log_data
+        # Clean up state and return values
+        self.thread_queue.put(log_data)
+        self.thread_queue.join()
+        self.thread_handle = None
+        nvml.nvmlShutdown()
+        return 0
 
     @staticmethod
-    def parse_log(logfile):
+    def parse_log(logfile, remove_errors=False):
         with open(logfile, "r") as f:
             log_data = json.load(f)
         
+        # Convery sub arrays back to tuples
+        for category, values in log_data.items():
+            log_data[category] = list(map(lambda x: (x[0], x[1]), values))
+
+            if not remove_errors:
+                continue
+            
+            error_strings = list(nvml.NVMLError._errcode_to_string.values())
+            log_data[category] = list(filter(lambda x: x[1] not in error_strings, log_data[category]))
+
         return log_data
 
