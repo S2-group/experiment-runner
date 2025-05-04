@@ -58,6 +58,10 @@ class RunnerConfig:
         factor2 = FactorModel("problem_size", [10, 20, 30])
         self.run_table_model = RunTableModel(
             factors=[factor1, factor2],
+            exclude_variations=[
+                {factor2: [10]},                    # all runs having treatment "10" will be excluded
+                {factor1: ['iter'], factor2: [30]}, # all runs having the combination ("iter", 30) will be excluded
+            ],
             repetitions = 3,
             data_columns=["total_power (J)", "runtime (sec)", "avg_mem (bytes)"]
         )
@@ -84,7 +88,6 @@ class RunnerConfig:
         fib_type = context.run_variation["fib_type"]
         problem_size = context.run_variation["problem_size"]
 
-        EnergiBridge.source_name = "../EnergiBridge/target/release/energibridge"
         self.profiler = EnergiBridge(target_program=f"python examples/hello-world-fibonacci/fibonacci_{fib_type}.py {problem_size}",
                                      out_file=context.run_dir / "energibridge.csv")
 
