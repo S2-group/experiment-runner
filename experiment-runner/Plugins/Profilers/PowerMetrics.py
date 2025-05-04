@@ -3,7 +3,7 @@ from enum import StrEnum
 from pathlib import Path
 import plistlib
 
-from Plugins.Profilers.DataSource import ParameterDict, CLISource
+from Plugins.Profilers.DataSource import ParameterDict, CLISource, ValueRef
 
 # How to format the output
 class PMFormatTypes(StrEnum):
@@ -41,7 +41,7 @@ POWERMETRICS_PARAMETERS = {
     ("--format",        "-f"): PMFormatTypes,
     ("--sample-rate",   "-i"): int,
     ("--sample-count",  "-n"): int,
-    ("--output-file",   "-o"): Path,
+    ("--output-file",   "-o"): ValueRef,
     ("--order",         "-r"): PMOrderTypes,
     ("--samplers",      "-s"): list[PMSampleTypes],
     ("--wakeup-cost",   "-t"): int,
@@ -86,7 +86,7 @@ class PowerMetrics(CLISource):
         self.logfile = out_file
         # Grab all available power stats by default
         self.args = {
-            "--output-file": Path(self.logfile),
+            "--output-file": self._logfile,
             "--sample-rate": sample_frequency,
             "--format": PMFormatTypes.PM_FMT_PLIST,
             "--samplers": [PMSampleTypes.PM_SAMPLE_CPU_POWER,
