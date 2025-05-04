@@ -68,7 +68,6 @@ class RunnerConfig:
         """Perform any activity required before starting the experiment here
         Invoked only once during the lifetime of the program."""
         
-        PowerLetrics.source_name = ".env/bin/powerletrics"
         self.profiler = PowerLetrics(additional_args={
                             "--show-process-io": None, 
                             "--show-process-netstats": None})
@@ -115,6 +114,7 @@ class RunnerConfig:
         # Powerletrics outputs stats for each process
         pl_log = self.profiler.parse_log(self.profiler.logfile)
         
+        # Parse the stats for the values you are interested in
         first_process = pl_log[0][0]
         return {"energy_footprint": first_process['Energy Footprint'],
                 "cpu_utilization": first_process["CPU Utilization (%)"], 

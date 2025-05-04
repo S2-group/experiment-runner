@@ -2,7 +2,7 @@ import plistlib
 from pathlib import Path
 from enum import StrEnum
 import weakref
-from Plugins.Profilers.DataSource import CLISource, ParameterDict, Logfile
+from Plugins.Profilers.DataSource import CLISource, ParameterDict, ValueRef
 
 # How to format the output
 class PLFormatTypes(StrEnum):
@@ -20,7 +20,7 @@ POWERLETRICS_PARAMETERS = {
 #    ("-h", "--help"): None,             # Dont support this
     ("-i", "--sample-rate"): int,
     ("-n", "--sample-count"): int,
-    ("-o", "--output-file"): Logfile,
+    ("-o", "--output-file"): ValueRef,
     ("-r", "--order"): PLOrderTypes,
     ("-A", "--show-all"): None,
     ("--show-process-io"): None,
@@ -48,14 +48,16 @@ class PowerLetrics(CLISource):
     
     def __init__(self,
                  sample_frequency:      int                 = 1000,
-                 out_file:              Path                = "pm_out.plist",
+                 out_file:              Path                = "pl_out.plist",
                  additional_args:       dict                = {},
                  order:                 PLOrderTypes        = PLOrderTypes.PL_ORDER_CPU):
 
         super().__init__()
+        
+        print(self._logfile)
 
         self.requires_admin = True
-        self._logfile = Logfile(out_file)
+        self.logfile = out_file
 
         self.args = {
             "--output-file": self._logfile,
@@ -67,14 +69,6 @@ class PowerLetrics(CLISource):
         }
 
         self.update_parameters(add=additional_args)
-    
-    @property
-    def logfile(self):
-        return self._logfile.file
-    
-    @logfile.setter
-    def logfile(self, value):
-        self._logfile.file = value
 
     @staticmethod
     def parse_log(logfile: Path):

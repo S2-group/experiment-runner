@@ -66,10 +66,13 @@ class ParameterDict(UserDict):
 
         return False
 
+class ValueRef:
+    def __init__(self, value):
+        self.value = value
+
 class DataSource(ABC):
     def __init__(self):
         self._validate_platform()
-        self._logfile = None
 
     def _validate_platform(self):
         if platform.system() in self.supported_platforms:
@@ -110,14 +113,11 @@ class DataSource(ABC):
     def parse_log():
         pass
 
-class Logfile:
-    def __init__(self, file: str):
-        self.file = file
-
 class CLISource(DataSource):
     def __init__(self):
         self.process = None
         self.args = None
+        self._logfile = ValueRef(None)
 
         super().__init__()
 
@@ -125,6 +125,14 @@ class CLISource(DataSource):
         if self.process:
             self.process.kill()
     
+    @property
+    def logfile(self):
+        return self._logfile.value
+    
+    @logfile.setter
+    def logfile(self, value):
+        self._logfile.value = value
+
     @property
     @abstractmethod
     def parameters(self) -> ParameterDict:
@@ -177,8 +185,8 @@ class CLISource(DataSource):
         for p, v in self.args.items():
             if v == None:
                 cmd += f" {p}"
-            elif isinstance(v, Logfile):
-                cmd += f" {p} {v.file}"
+            elif isinstance(v, ValueRef):
+                cmd += f" {p} {v.value}"
             elif isinstance(v, Iterable) and not (isinstance(v, StrEnum) or isinstance(v, str)):
                 cmd += f" {p} {",".join(map(str, v))}"
             else:
