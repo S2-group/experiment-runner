@@ -56,7 +56,7 @@ class ExperimentController:
             existing_run_table = self.csv_data_manager.read_run_table()
 
             # First sanity check. If there is no "TODO" in the __done column, simply abort.
-            todo_run_found = any([variation['__done'] != RunProgress.DONE for variation in existing_run_table])
+            todo_run_found = any([current_run['__done'] != RunProgress.DONE for current_run in existing_run_table])
             if not todo_run_found:
                 raise BaseError("The experiment was restarted, but all runs have already been completed.")
 
@@ -125,14 +125,14 @@ class ExperimentController:
         EventSubscriptionController.raise_event(RunnerEvents.BEFORE_EXPERIMENT)
 
         # -- Experiment
-        for variation in self.run_table:
-            if variation['__done'] == RunProgress.DONE:
+        for current_run in self.run_table:
+            if current_run['__done'] == RunProgress.DONE:
                 continue
 
             output.console_log_WARNING("Calling before_run config hook")
             EventSubscriptionController.raise_event(RunnerEvents.BEFORE_RUN)
 
-            run_controller = RunController(variation, self.config, (self.run_table.index(variation) + 1), len(self.run_table))
+            run_controller = RunController(current_run, self.config, (self.run_table.index(current_run) + 1), len(self.run_table))
             perform_run = multiprocessing.Process(
                 target=run_controller.do_run,
                 args=[]

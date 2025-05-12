@@ -79,7 +79,7 @@ class RunnerConfig:
         For example, starting the target system to measure.
         Activities after starting the run should also be performed here."""
         
-        cpu_limit = context.run_variation['cpu_limit']
+        cpu_limit = context.execute_run['cpu_limit']
 
         # start the target
         self.target = subprocess.Popen(['python', './primer.py'],

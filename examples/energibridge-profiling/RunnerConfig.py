@@ -85,7 +85,7 @@ class RunnerConfig:
 
     def start_measurement(self, context: RunnerContext) -> None:
         """Perform any activity required for starting measurements."""
-        sampling_interval = context.run_variation['sampling']
+        sampling_interval = context.execute_run['sampling']
 
         profiler_cmd = f'sudo energibridge \
                         --interval {sampling_interval} \

@@ -1,11 +1,11 @@
 from pathlib import Path
 import pandas as pd
 import re
-from Plugins.Profilers.DataSource import CLISource, ParameterDict
+from Plugins.Profilers.DataSource import CLISource, ParameterDict, ValueRef
 
 # Supported Paramters for the PowerJoular metrics plugin
 ENERGIBRIDGE_PARAMETERS = {
-    ("-o","--output"): Path,
+    ("-o","--output"): ValueRef,
     ("-s","--separator"): str,
     ("-c","--output-command"): str,
     ("-i","--interval"): int,
@@ -33,7 +33,7 @@ class EnergiBridge(CLISource):
         self.target_program = target_program
         self.logfile = out_file
         self.args = {
-            "-o": Path(self.logfile),
+            "-o": self._logfile,
             "-i": sample_frequency,
         }
 
@@ -53,7 +53,7 @@ class EnergiBridge(CLISource):
             
             return None
 
-        return self.logfile.parent / Path(self.logfile.name.split(".")[0] + "-summary.txt")
+        return Path(self.logfile).parent / Path(self.logfile.name.split(".")[0] + "-summary.txt")
     
     def _stat_delta(self, data, stat):
         return list(data[stat].values())[-1] - list(data[stat].values())[0]

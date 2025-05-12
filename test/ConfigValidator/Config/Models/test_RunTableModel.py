@@ -69,7 +69,7 @@ class TestRunTableModelExclusions(unittest.TestCase):
 
         self.runTableModel = RunTableModel(
             factors=[factor1, factor2],
-            exclude_variations=[
+            exclude_combinations=[
                 {factor1: [0, 1, 2]},  # Exclude any experiments that have levels 0,1,2 for factor1.
                 {factor1: [3], factor2: [4]},  # Exclude pair (3,4) (but NOT (4,3))
                 {factor1: [3, 4], factor2: [5]},  # Excludes (3,5) and (4,5)

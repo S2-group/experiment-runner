@@ -54,8 +54,6 @@ class PowerLetrics(CLISource):
 
         super().__init__()
         
-        print(self._logfile)
-
         self.requires_admin = True
         self.logfile = out_file
 

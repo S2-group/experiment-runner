@@ -45,7 +45,7 @@ class RunController(IRunController):
             if "joules:" not in stdout:
                 output.console_log_FAIL("EnergiBridge error: Could not extract joules from output")
             
-            self.run_context.run_variation["self-measure"] = round(float(stdout.split(" ")[6]), 3)
+            self.run_context.execute_run["self-measure"] = round(float(stdout.split(" ")[6]), 3)
 
         except Exception as e:
             output.console_log_FAIL(f"Failed to stop EnergiBridge:\n{e}")
@@ -85,10 +85,10 @@ class RunController(IRunController):
 
         if user_run_data:
             # TODO: check if data columns exist and if yes, if they match
-            updated_run_data = {**self.run_context.run_variation,
+            updated_run_data = {**self.run_context.execute_run,
                                 **user_run_data}  # shallowly-merged dictionary. Takes values from first; replacing matching keys with values from second.
         else:
-            updated_run_data = self.run_context.run_variation
+            updated_run_data = self.run_context.execute_run
 
         updated_run_data['__done'] = RunProgress.DONE
         self.data_manager.update_row_data(updated_run_data)

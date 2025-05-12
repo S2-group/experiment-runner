@@ -66,7 +66,7 @@ class RunnerConfig:
         factor2 = FactorModel("example_factor2", [True, False])
         self.run_table_model = RunTableModel(
             factors=[factor1, factor2],
-            exclude_variations=[
+            exclude_combinations=[
                 {factor1: [x1]},
                 {factor1: [x2], factor2: [True]},
             ],
@@ -98,7 +98,7 @@ class RunnerConfig:
     def populate_run_data(self, context: RunnerContext) -> Optional[Dict[str, SupportsStr]]:
         output.console_log("Config.populate_run_data() called!")
         return {
-            'avg_cpu': context.run_variation['example_factor1'].x,
+            'avg_cpu': context.execute_run['example_factor1'].x,
             'avg_mem': 18.1
         }
 

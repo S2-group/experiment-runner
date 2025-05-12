@@ -92,8 +92,8 @@ class RunnerConfig:
         For example, starting the target system to measure.
         Activities after starting the run should also be performed here."""
         
-        num_workers = context.run_variation['num_workers']
-        write_size = context.run_variation['write_size']
+        num_workers = context.execute_run['num_workers']
+        write_size = context.execute_run['write_size']
 
         # Start stress-ng
         stress_cmd = f"sudo stress-ng \
