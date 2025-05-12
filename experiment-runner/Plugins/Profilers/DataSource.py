@@ -9,6 +9,8 @@ import os
 import ctypes
 from enum import StrEnum
 import shutil
+import ctypes
+import os
 import subprocess
 import threading
 import queue
@@ -86,6 +88,12 @@ class DataSource(ABC):
         except:
             return ctypes.windll.shell32.IsUserAdmin() == 1
 
+    def is_admin(self):
+        try:
+            return os.getuid() == 0
+        except:
+            return ctypes.windll.shell32.IsUserAdmin() == 1
+
     @property
     @abstractmethod
     def supported_platforms(self) -> list[str]:
@@ -110,11 +118,15 @@ class DataSource(ABC):
 
     @staticmethod
     @abstractmethod
-    def parse_log():
+    def parse_log(logfile):
         pass
 
 class CLISource(DataSource):
     def __init__(self):
+        super().__init__()
+        
+        self.requires_admin = False
+
         self.process = None
         self.args = None
         self._logfile = ValueRef(None)
@@ -141,7 +153,8 @@ class CLISource(DataSource):
     def _validate_platform(self):
         super()._validate_platform()
                 
-        if shutil.which(self.source_name) is None:
+        if shutil.which(self.source_name) is None       \
+            and not os.access(self.source_name, os.X_OK):
             raise RuntimeError(f"The {self.source_name} cli tool is required for this plugin")
     
     def _validate_start(self):
@@ -179,7 +192,11 @@ class CLISource(DataSource):
 
     def _format_cmd(self):
         self._validate_parameters(self.args)
+
         cmd = self.source_name
+
+        if self.requires_admin:
+            cmd = f"sudo {cmd}"
         
         # Transform the parameter dict into string format to be parsed by shlex
         for p, v in self.args.items():
@@ -219,13 +236,15 @@ class CLISource(DataSource):
         
         self._validate_start()
 
-    def stop(self):
+    def stop(self, wait=False):
         if not self.process:
             return
 
         try:
-            self.process.terminate()
-            stdout, stderr = self.process.communicate(timeout=5)
+            if not wait:
+                self.process.terminate()
+            
+            stdout, stderr = self.process.communicate(timeout=None if wait else 5)
 
         except Exception as e:
             self.process.kill()
