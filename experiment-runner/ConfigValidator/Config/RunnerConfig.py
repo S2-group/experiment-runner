@@ -58,7 +58,7 @@ class RunnerConfig:
         factor2 = FactorModel("example_factor2", [True, False])
         self.run_table_model = RunTableModel(
             factors=[factor1, factor2],
-            exclude_variations=[
+            exclude_combinations=[
                 {factor1: ['example_treatment1']},                   # all runs having treatment "example_treatment1" will be excluded
                 {factor1: ['example_treatment2'], factor2: [True]},  # all runs having the combination ("example_treatment2", True) will be excluded
             ],

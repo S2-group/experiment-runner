@@ -22,7 +22,7 @@ class ConfigValidator:
                                                     f"\n\n{ConfigAttributeInvalidError(name, value, expected)}"
             ConfigValidator.error_found = True
     
-    # Verifies that an energybridge executable is present, and can be executed without error
+ # Verifies that an energybridge executable is present, and can be executed without error
     @staticmethod
     def __validate_energibridge(config):
         # Do nothing if its not enabled
@@ -66,7 +66,6 @@ class ConfigValidator:
             ConfigValidator.error_found = True
             ConfigValidator \
                     .config_values_or_exception_dict["EnergiBridge"] = f"Exception durring EnergiBridge test:\n{e}"
-
         
     @staticmethod
     def validate_config(config: RunnerConfig):

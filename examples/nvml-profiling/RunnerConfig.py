@@ -5,17 +5,14 @@ from ConfigValidator.Config.Models.FactorModel import FactorModel
 from ConfigValidator.Config.Models.RunnerContext import RunnerContext
 from ConfigValidator.Config.Models.OperationType import OperationType
 from ProgressManager.Output.OutputProcedure import OutputProcedure as output
+from Plugins.Profilers.NvidiaML import NvidiaML, NVML_Sample, NVML_Field, NVML_GPU_Operation_Mode, NVML_IDs, NVML_Dynamic_Query
 
 from typing import Dict, List, Any, Optional
 from pathlib import Path
+import numpy as np
+import time
 from os.path import dirname, realpath
 
-import os
-import signal
-import pandas as pd
-import time
-import subprocess
-import shlex
 
 class RunnerConfig:
     ROOT_DIR = Path(dirname(realpath(__file__)))
@@ -53,24 +50,36 @@ class RunnerConfig:
             (RunnerEvents.AFTER_EXPERIMENT , self.after_experiment )
         ])
         self.run_table_model = None  # Initialized later
+
         output.console_log("Custom config loaded")
 
     def create_run_table_model(self) -> RunTableModel:
         """Create and return the run_table model here. A run_table is a List (rows) of tuples (columns),
         representing each run performed"""
-        sampling_factor = FactorModel("sampling", [10, 50, 100, 200, 500, 1000])
+        # Create the experiment run table with factors, and desired data columns
+        factor1 = FactorModel("test_factor", [1, 2])
         self.run_table_model = RunTableModel(
-            factors = [sampling_factor],
-            data_columns=['dram_energy', 'package_energy',
-                          'pp0_energy', 'pp1_energy']
-
-        )
+            factors = [factor1],
+            data_columns=["avg_enc", "avg_dec", "avg_pstate"])
+        
         return self.run_table_model
 
     def before_experiment(self) -> None:
         """Perform any activity required before starting the experiment here
         Invoked only once during the lifetime of the program."""
-        pass
+
+        self.profiler = NvidiaML(queries=[NVML_Dynamic_Query.NVML_PERFORMANCE_STATE],
+                                 fields=[NVML_Field.NVML_FI_DEV_POWER_INSTANT,
+                                         NVML_Field.NVML_FI_DEV_TOTAL_ENERGY_CONSUMPTION],
+                                 samples=[NVML_Sample.NVML_ENC_UTILIZATION_SAMPLES,
+                                          NVML_Sample.NVML_DEC_UTILIZATION_SAMPLES],
+                                 settings={"GpuOperationMode": (NVML_GPU_Operation_Mode.NVML_GOM_ALL_ON,)})
+
+        # Show stats about available GPUs
+        devices = self.profiler.list_devices(print_dev=True)
+
+        # Open the driver for the device we want to use
+        self.profiler.open_device(0, NVML_IDs.NVML_ID_INDEX)
 
     def before_run(self) -> None:
         """Perform any activity required before starting a run.
@@ -81,59 +90,52 @@ class RunnerConfig:
         """Perform any activity required for starting the run here.
         For example, starting the target system to measure.
         Activities after starting the run should also be performed here."""
-        pass
+
+        self.profiler.logfile = context.run_dir / "nvml_log.json"
+
+        # Start your GPU based target program here
 
     def start_measurement(self, context: RunnerContext) -> None:
         """Perform any activity required for starting measurements."""
-        sampling_interval = context.execute_run['sampling']
-
-        profiler_cmd = f'sudo energibridge \
-                        --interval {sampling_interval} \
-                        --max-execution 20 \
-                        --output {context.run_dir / "energibridge.csv"} \
-                        --summary \
-                        python3 examples/energibridge-profiling/primer.py'
-
-        #time.sleep(1) # allow the process to run a little before measuring
-        energibridge_log = open(f'{context.run_dir}/energibridge.log', 'w')
-        self.profiler = subprocess.Popen(shlex.split(profiler_cmd), stdout=energibridge_log)
+        self.profiler.start()
 
     def interact(self, context: RunnerContext) -> None:
         """Perform any interaction with the running target system here, or block here until the target finishes."""
-
-        # No interaction. We just run it for XX seconds.
-        # Another example would be to wait for the target to finish, e.g. via `self.target.wait()`
-        output.console_log("Running program for 20 seconds")
-        time.sleep(20)
+        time.sleep(5)
 
     def stop_measurement(self, context: RunnerContext) -> None:
         """Perform any activity here required for stopping measurements."""
-        self.profiler.wait()
+        log_data = self.profiler.stop()
 
     def stop_run(self, context: RunnerContext) -> None:
         """Perform any activity here required for stopping the run.
         Activities after stopping the run should also be performed here."""
-        pass
-    
+        
+        # Stop your GPU based target here
+
     def populate_run_data(self, context: RunnerContext) -> Optional[Dict[str, Any]]:
         """Parse and process any measurement data here.
         You can also store the raw measurement data under `context.run_dir`
         Returns a dictionary with keys `self.run_table_model.data_columns` and their values populated"""
+        
+        nvml_log = self.profiler.parse_log(self.profiler.logfile, remove_errors=True)
 
-        # energibridge.csv - Power consumption of the whole system
-        df = pd.read_csv(context.run_dir / f"energibridge.csv")
-        run_data = {
-            'dram_energy': round(df['DRAM_ENERGY (J)'].iloc[-1] - df['DRAM_ENERGY (J)'].iloc[0], 3),
-            'package_energy': round(df['PACKAGE_ENERGY (J)'].iloc[-1] - df['PACKAGE_ENERGY (J)'].iloc[0], 3),
-            'pp0_energy': round(df['PP0_ENERGY (J)'].iloc[-1] - df['PP0_ENERGY (J)'].iloc[0], 3),
-            'pp1_energy': round(df['PP1_ENERGY (J)'].iloc[-1] - df['PP1_ENERGY (J)'].iloc[0], 3),
+        # Aggregate some data for results
+        return {
+            "avg_enc": 0 if len(nvml_log["enc_utilization_samples"]) == 0
+                       else np.mean(list(map(lambda x: x[1], nvml_log["enc_utilization_samples"]))),
+            "avg_dec": 0 if len(nvml_log["dec_utilization_samples"]) == 0
+                       else np.mean(list(map(lambda x: x[1], nvml_log["dec_utilization_samples"]))),
+            "avg_pstate": 0 if len(nvml_log["NVML_PERFORMANCE_STATE"]) == 0
+                       else np.mean(list(map(lambda x: x[1], nvml_log["NVML_PERFORMANCE_STATE"]))),
         }
-        return run_data
 
     def after_experiment(self) -> None:
         """Perform any activity required after stopping the experiment here
         Invoked only once during the lifetime of the program."""
-        pass
+
+        # This also gets called when the object is garbase collected
+        self.profiler.close_device()
 
     # ================================ DO NOT ALTER BELOW THIS LINE ================================
     experiment_path:            Path             = None

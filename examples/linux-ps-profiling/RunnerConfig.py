@@ -62,7 +62,7 @@ class RunnerConfig:
         pin_core_factor  = FactorModel("pin_core" , [True, False])
         self.run_table_model = RunTableModel(
             factors = [cpu_limit_factor, pin_core_factor],
-            exclude_variations = [
+            exclude_combinations = [
                 {cpu_limit_factor: [70], pin_core_factor: [False]} # all runs having the combination <'70', 'False'> will be excluded
             ],
             data_columns=["avg_cpu", "avg_mem"]
@@ -86,8 +86,8 @@ class RunnerConfig:
         For example, starting the target system to measure.
         Activities after starting the run should also be performed here."""
         
-        cpu_limit = context.run_variation['cpu_limit']
-        pin_core  = context.run_variation['pin_core']
+        cpu_limit = context.execute_run['cpu_limit']
+        pin_core  = context.execute_run['pin_core']
 
         # start the target
         self.target = subprocess.Popen(['./primer'],

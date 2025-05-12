@@ -1,15 +1,19 @@
 from abc import ABC, abstractmethod
 from collections import UserDict
-from collections.abc import Iterable # This import is only valid >= python 3.10 I think
+from collections.abc import Iterable, Callable # This import is only valid >= python 3.10 I think
 from pathlib import Path
 from typing import get_origin, get_args
 import platform
 import shlex
+import os
+import ctypes
 from enum import StrEnum
 import shutil
 import ctypes
 import os
 import subprocess
+import threading
+import queue
 
 class ParameterDict(UserDict):
     def valid_key(self, key):
@@ -36,7 +40,7 @@ class ParameterDict(UserDict):
     def __getitem__(self, key):
         if not self.valid_key(key):
             raise RuntimeError("Unexpected key type, expected `str` or `list[str]`")
-
+        
         if isinstance(key, str):
             key = self.str_to_tuple(key)
 
@@ -57,23 +61,32 @@ class ParameterDict(UserDict):
     def __contains__(self, key):
         if isinstance(key, str):
             key = self.str_to_tuple(key)
-
+        
         for params, val in self.data.items():
             if set(key).issubset(params):
                 return True
 
         return False
 
+class ValueRef:
+    def __init__(self, value):
+        self.value = value
+
 class DataSource(ABC):
     def __init__(self):
         self._validate_platform()
-        self.logfile = None
 
     def _validate_platform(self):
         if platform.system() in self.supported_platforms:
             return
 
         raise RuntimeError(f"One of: {self.supported_platforms} is required for this plugin")
+    
+    def is_admin(self):
+        try:
+            return os.getuid() == 0
+        except:
+            return ctypes.windll.shell32.IsUserAdmin() == 1
 
     def is_admin(self):
         try:
@@ -95,24 +108,43 @@ class DataSource(ABC):
     def __del__(self):
         pass
 
+    @abstractmethod
+    def start(self):
+        pass
+
+    @abstractmethod
+    def stop(self):
+        pass
+
     @staticmethod
     @abstractmethod
     def parse_log(logfile):
         pass
-
 
 class CLISource(DataSource):
     def __init__(self):
         super().__init__()
         
         self.requires_admin = False
+
         self.process = None
         self.args = None
+        self._logfile = ValueRef(None)
+
+        super().__init__()
 
     def __del__(self):
         if self.process:
             self.process.kill()
     
+    @property
+    def logfile(self):
+        return self._logfile.value
+    
+    @logfile.setter
+    def logfile(self, value):
+        self._logfile.value = value
+
     @property
     @abstractmethod
     def parameters(self) -> ParameterDict:
@@ -170,6 +202,8 @@ class CLISource(DataSource):
         for p, v in self.args.items():
             if v == None:
                 cmd += f" {p}"
+            elif isinstance(v, ValueRef):
+                cmd += f" {p} {v.value}"
             elif isinstance(v, Iterable) and not (isinstance(v, StrEnum) or isinstance(v, str)):
                 cmd += f" {p} {",".join(map(str, v))}"
             else:
@@ -222,7 +256,14 @@ class CLISource(DataSource):
 class DeviceSource(DataSource):
     def __init__(self):
         super().__init__()
+
         self.device_handle = None
+        self.process = None
+        self.sample_frequency=None
+
+        # Create the pipe that implements graceful shutdown
+        self.stop_thread = threading.Event()
+        self.thread_queue = queue.Queue(maxsize=1)
 
     def __del__(self):
         if self.device_handle:
@@ -243,8 +284,53 @@ class DeviceSource(DataSource):
     @abstractmethod
     def set_mode(self):
         pass
-    
+
     @abstractmethod
-    def log(self, timeout: int = 60, logfile: Path = None):
-        pass
+    def log(self):
+        if not self.device_handle:
+            raise RuntimeError("A device must be selected before it can be queried")
+        
+        if threading.current_thread().name != "DeviceWorker":
+            raise RuntimeError("Dont call log directly, call start() to begin logging")
+
+    def start(self):
+        if self.process:
+            raise RuntimeError("This module has already been started. Call stop() to start again")
+
+        try:
+            self.process = threading.Thread(target=self.log,
+                                            name="DeviceWorker")
+
+            self.process.start()
+        except Exception as e:
+            self.process.terminate()
+            raise RuntimeError(f"Could not start logging process: {e}")
+
+    def stop(self):
+        if not self.process:
+            return
+
+        if not self.process.is_alive():
+            raise RuntimeError("Process terminated early, check configuration")
+        
+        ret = None
+        timeout = self.sample_frequency * 2
+        try:
+            # Send the shutdown signal
+            self.stop_thread.set()
+            ret = self.thread_queue.get(block=True, timeout=timeout)
+            self.thread_queue.task_done()
+
+            self.process.join(timeout)
+        except:
+            raise RuntimeError("An error occured while joining the thread")
+
+        if self.process.is_alive():
+            raise RuntimeError("The device thread could not be stopped")
+
+        self.stop_thread.clear()
+        self.process = None
+
+        return ret
+
 

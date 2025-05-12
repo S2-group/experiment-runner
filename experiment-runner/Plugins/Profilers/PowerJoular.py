@@ -1,13 +1,13 @@
 from __future__ import annotations
 from pathlib import Path
 import pandas as pd
-from Plugins.Profilers.DataSource import CLISource, ParameterDict
+from Plugins.Profilers.DataSource import CLISource, ParameterDict, ValueRef
 
 # Supported Paramters for the PowerJoular metrics plugin
 POWERJOULAR_PARAMETERS = {
     ("-p",): int,
     ("-a",): str,
-    ("-f",): Path,
+    ("-f",): ValueRef,
     ("-o",): Path,
     ("-t",): None,
     ("-l",): None,
@@ -31,7 +31,7 @@ class PowerJoular(CLISource):
         self.logfile = out_file
         self.args = {
             "-l": None,
-            "-f": Path(self.logfile),
+            "-f": self._logfile,
         }
 
         if target_pid:

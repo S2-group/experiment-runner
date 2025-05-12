@@ -11,13 +11,13 @@ from ConfigValidator.Config.Models.FactorModel import FactorModel
 class RunTableModel:
     def __init__(self,
                  factors: List[FactorModel],
-                 exclude_variations: List[Dict[FactorModel, List[SupportsStr]]] = None,
+                 exclude_combinations: List[Dict[FactorModel, List[SupportsStr]]] = None,
                  repetitions: int = 1,
                  data_columns: List[str] = None,
                  shuffle: bool = False
                  ):
-        if exclude_variations is None:
-            exclude_variations = {}
+        if exclude_combinations is None:
+            exclude_combinations = {}
         if data_columns is None:
             data_columns = []
 
@@ -31,7 +31,7 @@ class RunTableModel:
             raise BaseError("Duplicate data column detected!")
 
         self.__factors = factors
-        self.__exclude_variations = exclude_variations
+        self.__exclude_combinations = exclude_combinations
         self.__repetitions = repetitions
         self.__data_columns = data_columns
         self.__shuffle = shuffle
@@ -44,11 +44,11 @@ class RunTableModel:
 
     def generate_experiment_run_table(self) -> List[Dict]:
         def __filter_list(full_list: List[Tuple]):
-            if len(self.__exclude_variations) == 0:
+            if len(self.__exclude_combinations) == 0:
                 return full_list
 
             to_remove_indices = []
-            for exclusion in self.__exclude_variations:
+            for exclusion in self.__exclude_combinations:
                 # Construct the exclusion tuples
                 list_of_lists = []
                 indexes = []

@@ -58,7 +58,7 @@ class RunnerConfig:
         factor2 = FactorModel("problem_size", [10, 20, 30])
         self.run_table_model = RunTableModel(
             factors=[factor1, factor2],
-            exclude_variations=[
+            exclude_combinations=[
                 {factor2: [10]},                    # all runs having treatment "10" will be excluded
                 {factor1: ['iter'], factor2: [30]}, # all runs having the combination ("iter", 30) will be excluded
             ],
@@ -85,9 +85,9 @@ class RunnerConfig:
 
     def start_measurement(self, context: RunnerContext) -> None:
         """Perform any activity required for starting measurements."""
-        fib_type = context.run_variation["fib_type"]
-        problem_size = context.run_variation["problem_size"]
-
+        fib_type = context.execute_run["fib_type"]
+        problem_size = context.execute_run["problem_size"]
+        
         self.profiler = EnergiBridge(target_program=f"python examples/hello-world-fibonacci/fibonacci_{fib_type}.py {problem_size}",
                                      out_file=context.run_dir / "energibridge.csv")
 
