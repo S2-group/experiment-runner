@@ -82,6 +82,7 @@ class EnergiBridge(CLISource):
                 # If runtime was too short, energibridge doesnt provide a summary
                 # Approximate this instead
                 if not last_line.startswith("Energy consumption"):
+                    print("[WARNING] EnergiBridge summary approximated, runtime too short")
                     last_line = self.generate_summary()
 
                 f.write(last_line)

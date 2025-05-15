@@ -55,15 +55,16 @@ class RunnerConfig:
         """Create and return the run_table model here. A run_table is a List (rows) of tuples (columns),
         representing each run performed"""
         factor1 = FactorModel("fib_type", ['iter', 'mem', 'rec'])
-        factor2 = FactorModel("problem_size", [10, 20, 30])
+        factor2 = FactorModel("problem_size", [10, 35, 40, 5000, 10000])
         self.run_table_model = RunTableModel(
             factors=[factor1, factor2],
             exclude_combinations=[
-                {factor2: [10]},                    # all runs having treatment "10" will be excluded
-                {factor1: ['iter'], factor2: [30]}, # all runs having the combination ("iter", 30) will be excluded
+                {factor2: [10]},   # all runs having treatment "10" will be excluded
+                {factor1: ['rec'], factor2: [5000, 10000]},
+                {factor1: ['mem', 'iter'], factor2: [35, 40]},  # all runs having the combination ("iter", 30) will be excluded
             ],
-            repetitions = 3,
-            data_columns=["total_power (J)", "runtime (sec)", "avg_mem (bytes)"]
+            repetitions = 10,
+            data_columns=["total_power (J)", "runtime (sec)", "max_mem (bytes)"]
         )
         return self.run_table_model
 
@@ -114,9 +115,9 @@ class RunnerConfig:
         eb_log, eb_summary = self.profiler.parse_log(self.profiler.logfile, 
                                                      self.profiler.summary_logfile)
         
-        return {"total_power (J)": eb_summary["total_joules"], 
+        return {"total_power (J)": list(eb_log["PACKAGE_ENERGY (J)"].values())[-1] - list(eb_log["PACKAGE_ENERGY (J)"].values())[0], 
                 "runtime (sec)": eb_summary["runtime_seconds"], 
-                "total_mem (bytes)": list(eb_log["TOTAL_MEMORY"].values())[-1]}
+                "max_mem (bytes)": max(eb_log["USED_MEMORY"].values())}
 
     def after_experiment(self) -> None:
         """Perform any activity required after stopping the experiment here
