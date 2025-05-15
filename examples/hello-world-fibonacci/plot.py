@@ -18,7 +18,7 @@ if __name__ == "__main__":
 
     sb.stripplot(data=results,
                  x="fib_type", 
-                 y="total_power (J)",
+                 y="energy",
                  hue="problem_size",
                  palette="Paired",
                  order=["mem", "iter", "rec"],

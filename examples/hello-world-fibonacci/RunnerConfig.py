@@ -64,7 +64,7 @@ class RunnerConfig:
                 {factor1: ['mem', 'iter'], factor2: [35, 40]},  # all runs having the combination ("iter", 30) will be excluded
             ],
             repetitions = 10,
-            data_columns=["total_power (J)", "runtime (sec)", "max_mem (bytes)"]
+            data_columns=["energy", "runtime", "memory"]
         )
         return self.run_table_model
 
@@ -115,9 +115,9 @@ class RunnerConfig:
         eb_log, eb_summary = self.profiler.parse_log(self.profiler.logfile, 
                                                      self.profiler.summary_logfile)
         
-        return {"total_power (J)": list(eb_log["PACKAGE_ENERGY (J)"].values())[-1] - list(eb_log["PACKAGE_ENERGY (J)"].values())[0], 
-                "runtime (sec)": eb_summary["runtime_seconds"], 
-                "max_mem (bytes)": max(eb_log["USED_MEMORY"].values())}
+        return {"energy": list(eb_log["PACKAGE_ENERGY (J)"].values())[-1] - list(eb_log["PACKAGE_ENERGY (J)"].values())[0], 
+                "runtime": eb_summary["runtime_seconds"], 
+                "memory": max(eb_log["USED_MEMORY"].values())}
 
     def after_experiment(self) -> None:
         """Perform any activity required after stopping the experiment here
