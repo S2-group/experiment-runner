@@ -8,6 +8,7 @@ import shutil
 import csv
 import os
 import pwd
+import getpass
 from typing import Dict, List
 
 
@@ -66,7 +67,7 @@ class CSVOutputManager(BaseOutputManager):
         shutil.move(tempfile.name, self._experiment_path / 'run_table.csv')
         
         # Change permissions so the files can be accessed if run as root (needed for some plugins)
-        user = pwd.getpwnam(os.getlogin())
+        user = pwd.getpwnam(getpass.getuser())
         os.chown(self._experiment_path / "run_table.csv", user.pw_uid, user.pw_gid)
 
         output.console_log_WARNING(f"CSVManager: Updated row {updated_row['__run_id']}")
