@@ -114,8 +114,8 @@ class RunnerConfig:
         
         eb_log, eb_summary = self.profiler.parse_log(self.profiler.logfile, 
                                                      self.profiler.summary_logfile)
-        
-        return {"energy": list(eb_log["PACKAGE_ENERGY (J)"].values())[-1] - list(eb_log["PACKAGE_ENERGY (J)"].values())[0], 
+
+        return {"energy": eb_summary["total_joules"],
                 "runtime": eb_summary["runtime_seconds"], 
                 "memory": max(eb_log["USED_MEMORY"].values())}
 
