@@ -78,3 +78,6 @@ The results of the experiment will be stored in the directory `RunnerConfig.resu
 
 **More information about the profilers and use cases can be found in the [Wiki tab](https://github.com/S2-group/experiment-runner/wiki).**
 
+### Contributing
+If you want to develop a new feature or ER, or found some bug you want to report we would love to hear from you! Please refer to our [contribution guidelines](https://github.com/S2-group/experiment-runner/wiki/Contributing-to-ER) for information on how to submit PRs or bug reports.
+
