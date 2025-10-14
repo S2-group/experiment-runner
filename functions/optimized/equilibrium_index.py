@@ -40,8 +40,10 @@ def equilibrium_index(arr: list[int]) -> int:
         >>> equilibrium_index([2, 4, 6, 8, 10, 3])
         -1
     """
+    n = len(arr)
     total_sum = sum(arr)
     left_sum = 0
+    i = 0 
 
     while i <= n - 4:
         # iteration 1
