@@ -52,10 +52,5 @@ def merge_sort(array: list) -> list:
 
 if __name__ == "__main__":
     import random
-    import time
-
     arr = [random.randint(0, 100000) for _ in range(5000)]
-    start = time.time()
-    sorted_arr = merge_sort(arr)
-    end = time.time()
-    print(f"Execution time: {end - start:.5f} seconds")
+    merge_sort(arr)

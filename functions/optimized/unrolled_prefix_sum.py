@@ -33,10 +33,7 @@ class PrefixSum:
 
 
 if __name__ == "__main__":
-    import random, time
+    import random
     arr = [random.randint(1, 1000) for _ in range(10000)]
-    start = time.time()
     ps = PrefixSum(arr)
-    result = ps.get_sum(0, len(arr) - 1)
-    end = time.time()
-    print(f"Execution time: {end - start:.5f} seconds")
+    ps.get_sum(0, len(arr) - 1)
