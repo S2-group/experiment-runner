@@ -1,7 +1,6 @@
-# baseline/mergesort.py: non-optimised
-from __future__ import annotations
+import random, time
 
-def merge(left_half: list, right_half: list) -> list:
+def merge(left_half, right_half):
     sorted_array = [None] * (len(right_half) + len(left_half))
     pointer1 = 0
     pointer2 = 0
@@ -29,18 +28,17 @@ def merge(left_half: list, right_half: list) -> list:
     return sorted_array
 
 
-def merge_sort(array: list) -> list:
+def merge_sort(array):
     if len(array) <= 1:
         return array
-
-    middle = len(array) // 2
-    left_half = array[:middle]
-    right_half = array[middle:]
-
+    mid = len(array) // 2
+    left_half = array[:mid]
+    right_half = array[mid:]
     return merge(merge_sort(left_half), merge_sort(right_half))
 
 
 if __name__ == "__main__":
-    import random
     arr = [random.randint(0, 100000) for _ in range(5000)]
-    merge_sort(arr)
+    start = time.time()
+    while time.time() - start < 30:     # run for 30 seconds
+        merge_sort(arr)
