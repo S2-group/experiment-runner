@@ -1,6 +1,6 @@
 import random, time
 
-def merge(left_half, right_half):
+def merge(left_half: list, right_half: list) -> list:
     sorted_array = [None] * (len(right_half) + len(left_half))
     pointer1 = 0
     pointer2 = 0
@@ -28,7 +28,7 @@ def merge(left_half, right_half):
     return sorted_array
 
 
-def merge_sort(array):
+def merge_sort(array: list) -> list:
     if len(array) <= 1:
         return array
     mid = len(array) // 2
@@ -38,7 +38,26 @@ def merge_sort(array):
 
 
 if __name__ == "__main__":
-    arr = [random.randint(0, 100000) for _ in range(5000)]
-    start = time.time()
-    while time.time() - start < 30:     # run for 30 seconds
+    target_time = 30  # seconds
+    n = 5000
+    elapsed = 0
+
+    print("Finding input size for ~30 seconds runtime...")
+    while elapsed < target_time:
+        arr = [random.randint(0, 100000) for _ in range(n)]
+        start = time.time()
         merge_sort(arr)
+        elapsed = time.time() - start
+        print(f"Input size: {n}, Time: {elapsed:.2f} s")
+
+        if elapsed < target_time:
+            # Exponentially increase size
+            n = int(n * 1.5)
+        elif elapsed > target_time * 1.5:
+            # Too high, reduce step if we overshoot too much
+            n = int(n * 0.9)
+            elapsed = 0  # re-test
+        else:
+            break
+
+    print(f"\n✅ Final input size: {n} (runtime ≈ {elapsed:.2f} s)")
