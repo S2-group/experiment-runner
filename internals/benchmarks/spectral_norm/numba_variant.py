@@ -79,8 +79,14 @@ def eval_AtA_times_u(u):
 def main():
     n = int(argv[1])
     result = spectral_norm_core(n)
-    print("%0.9f" % result)
 
 if __name__ == '__main__':
+    import time
+
     pool = Pool(processes=4)
+    n = 500
+
+    argv = ['spectral_norm', str(n)]
+    main()
+    print(time.time())
     main()

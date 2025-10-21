@@ -53,15 +53,15 @@ G3 = {
     "G": [["F", 1]],
 }
 
-short_distance = dijkstra(G, "E", "C")
-print(short_distance)
-
-short_distance = dijkstra(G2, "E", "F")
-print(short_distance)
-
-short_distance = dijkstra(G3, "E", "F")
-print(short_distance)
-
 if __name__ == "__main__":
-    import doctest
-    doctest.testmod()
+    import time
+
+    for _ in range(10000):
+        dijkstra(G, "E", "C")
+        dijkstra(G2, "E", "F")
+        dijkstra(G3, "E", "F")
+    print(time.time())
+    for _ in range(10000):
+        dijkstra(G, "E", "C")
+        dijkstra(G2, "E", "F")
+        dijkstra(G3, "E", "F")

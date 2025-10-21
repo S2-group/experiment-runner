@@ -55,5 +55,12 @@ def merge_sort_public(array: list) -> list:
     return [x for x in result]
 
 if __name__ == "__main__":
-    import doctest
-    doctest.testmod()
+    import time
+    import random
+
+    array = list(range(10000))
+    random.shuffle(array)
+
+    merge_sort_public(array.copy())
+    print(time.time())
+    merge_sort_public(array.copy())

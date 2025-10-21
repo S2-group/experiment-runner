@@ -46,6 +46,10 @@ def fannkuch(n):
 DEFAULT_ARG = 9
 
 if __name__ == "__main__":
-    runner = pyperf.Runner()
+    import time
+
     arg = DEFAULT_ARG
-    runner.bench_func('fannkuch', fannkuch, arg)
+
+    fannkuch(arg)
+    print(time.time())
+    fannkuch(arg)

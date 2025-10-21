@@ -416,8 +416,10 @@ class Richards(object):
 
 
 if __name__ == "__main__":
-    runner = pyperf.Runner()
-    runner.metadata['description'] = "The Richards benchmark"
+    import time
 
     richard = Richards()
-    runner.bench_func('richards', richard.run, 1)
+
+    richard.run(100)
+    print(time.time())
+    richard.run(100)

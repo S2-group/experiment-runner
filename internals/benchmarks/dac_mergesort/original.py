@@ -108,6 +108,12 @@ def merge_sort(array: list) -> list:
 
 
 if __name__ == "__main__":
-    import doctest
+    import time
+    import random
 
-    doctest.testmod()
+    array = list(range(10000))
+    random.shuffle(array)
+
+    merge_sort(array.copy())
+    print(time.time())
+    merge_sort(array.copy())

@@ -1,11 +1,4 @@
-# The Computer Language Benchmarks Game
-# http://benchmarksgame.alioth.debian.org/
-#
-# contributed by Antoine Pitrou
-# modified by Dominique Wahli and Daniel Nanz
-# modified by Joerg Baumann
-
-import sys
+import time
 import multiprocessing as mp
 
 
@@ -45,7 +38,7 @@ def get_argchunks(i, d, chunksize=5000):
         yield chunk
 
 
-def main(n, min_depth=4):
+def run_benchmark(n, min_depth=4):
 
     max_depth = max(min_depth + 2, n)
     stretch_depth = max_depth + 1
@@ -55,8 +48,7 @@ def main(n, min_depth=4):
     else:
         chunkmap = map
 
-    print('stretch tree of depth {0}\t check: {1}'.format(
-          stretch_depth, make_check((0, stretch_depth))))
+    make_check((0, stretch_depth))
 
     long_lived_tree = make_tree(max_depth)
 
@@ -66,11 +58,13 @@ def main(n, min_depth=4):
         cs = 0
         for argchunk in get_argchunks(i,d):
             cs += sum(chunkmap(make_check, argchunk))
-        print('{0}\t trees of depth {1}\t check: {2}'.format(i, d, cs))
 
-    print('long lived tree of depth {0}\t check: {1}'.format(
-          max_depth, check_tree(long_lived_tree)))
+    check_tree(long_lived_tree)
 
 
 if __name__ == '__main__':
-    main(int(sys.argv[1]))
+    n = 18
+
+    run_benchmark(n)
+    print(time.time())
+    run_benchmark(n)

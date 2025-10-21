@@ -104,16 +104,15 @@ G3 = {
     "G": [["F", 1]],
 }
 
-short_distance = dijkstra(G, "E", "C")
-print(short_distance)  # E -- 3 --> F -- 3 --> C == 6
-
-short_distance = dijkstra(G2, "E", "F")
-print(short_distance)  # E -- 3 --> F == 3
-
-short_distance = dijkstra(G3, "E", "F")
-print(short_distance)  # E -- 2 --> G -- 1 --> F == 3
-
 if __name__ == "__main__":
-    import doctest
+    import time
 
-    doctest.testmod()
+    for _ in range(10000):
+        dijkstra(G, "E", "C")
+        dijkstra(G2, "E", "F")
+        dijkstra(G3, "E", "F")
+    print(time.time())
+    for _ in range(10000):
+        dijkstra(G, "E", "C")
+        dijkstra(G2, "E", "F")
+        dijkstra(G3, "E", "F")

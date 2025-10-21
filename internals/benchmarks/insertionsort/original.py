@@ -60,10 +60,12 @@ def insertion_sort(collection: MutableSequence[T]) -> MutableSequence[T]:
 
 
 if __name__ == "__main__":
-    from doctest import testmod
+    import time
+    import random
 
-    testmod()
+    unsorted = list(range(5000))
+    random.shuffle(unsorted)
 
-    user_input = input("Enter numbers separated by a comma:\n").strip()
-    unsorted = [int(item) for item in user_input.split(",")]
-    print(f"{insertion_sort(unsorted) = }")
+    insertion_sort(unsorted.copy())
+    print(time.time())
+    insertion_sort(unsorted.copy())

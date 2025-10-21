@@ -83,4 +83,17 @@ def mandelbrot(n):
             write(row[1])
 
 if __name__ == '__main__':
-    mandelbrot(int(argv[1]))
+    import time
+    import io
+
+    n = 1000
+
+    old_stdout = stdout
+    stdout = io.BytesIO()
+    mandelbrot(n)
+    stdout = old_stdout
+    print(time.time())
+    old_stdout = stdout
+    stdout = io.BytesIO()
+    mandelbrot(n)
+    stdout = old_stdout

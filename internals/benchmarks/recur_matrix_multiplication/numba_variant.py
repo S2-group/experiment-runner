@@ -173,33 +173,10 @@ def matrix_multiply_recursive(matrix_a, matrix_b):
     return [[result[i][j] for j in range(len(result[i]))] for i in range(len(result))]
 
 if __name__ == "__main__":
-    from doctest import testmod
+    import time
 
-    failure_count, test_count = testmod()
-    if not failure_count:
-        matrix_a = matrices[0]
-        for matrix_b in matrices[1:]:
-            print("Multiplying:")
-            for row in matrix_a:
-                print(row)
-            print("By:")
-            for row in matrix_b:
-                print(row)
-            print("Result:")
-            try:
-                result = matrix_multiply_recursive(matrix_a, matrix_b)
-                for row in result:
-                    print(row)
-                assert result == matrix_multiply(matrix_a, matrix_b)
-            except ValueError as e:
-                print(f"{e!r}")
-            print()
-            matrix_a = matrix_b
-
-    print("Benchmark:")
-    from functools import partial
-    from timeit import timeit
-
-    mytimeit = partial(timeit, globals=globals(), number=100_000)
-    for func in ("matrix_multiply", "matrix_multiply_recursive"):
-        print(f"{func:>25}(): {mytimeit(f'{func}(matrix_count_up, matrix_unordered)')}")
+    for _ in range(10000):
+        matrix_multiply_recursive(matrix_count_up, matrix_unordered)
+    print(time.time())
+    for _ in range(10000):
+        matrix_multiply_recursive(matrix_count_up, matrix_unordered)
