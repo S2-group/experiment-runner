@@ -107,13 +107,12 @@ def merge_sort(array: list) -> list:
     return merge(merge_sort(left_half), merge_sort(right_half))
 
 
-if __name__ == "__main__":
-    import time
-    import random
+import time
+import random
 
-    array = list(range(10000))
-    random.shuffle(array)
+array = list(range(10000))
+random.shuffle(array)
 
-    merge_sort(array.copy())
-    print(time.time())
-    merge_sort(array.copy())
+merge_sort(array.copy())
+print(time.time())
+merge_sort(array.copy())

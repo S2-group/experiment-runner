@@ -12,24 +12,24 @@ def find_container():
     
     print("pid found ", pid)
     pid = int(pid)
+    return pid
+
+
+
+def total_memory_usage(pid):
     parent = psutil.Process(pid)
     children = parent.children(recursive=True)
-    return parent, children
-
-
-
-def total_memory_usage(parent, children):
     total_memory = parent.memory_info().rss
     for child in children:
         total_memory += child.memory_info().rss
-    total_memory = total_memory / 1024 / 1024
+    total_memory = total_memory 
     return total_memory
 
-def monitor_memory_usage(parent, children, interval=0.00001):
+def monitor_memory_usage(pid):
     results = []
     while True:
         try:
-            memory_usage = int(total_memory_usage(parent, children))
+            memory_usage = int(total_memory_usage(pid))
         except psutil.NoSuchProcess:
             results1, results2 = [], []
             max_memory1, max_memory2 = 0, 0
@@ -47,14 +47,14 @@ def monitor_memory_usage(parent, children, interval=0.00001):
             print(cold_start_finish)
             print("-"*50)
             with open("/tmp/test_container.log", "w") as f:
-                f.write(str(cold_start_finish))
+                f.write(str(int(cold_start_finish * 1000)))
             with open("/tmp/test_container_memory_usage", "w") as f:
-                f.write(str(max_memory1) + ", " + str(max_memory2))
+                f.write(str(max_memory1) + "\n" + str(max_memory2))
             return 0
-        results.append((time.time(), memory_usage * 1000))
+        results.append((time.time(), memory_usage))
 
 
 while(True):
     os.popen('docker rm ' + container_name + " 2>/dev/null")
-    parent, children = find_container()
-    monitor_memory_usage(parent, children)
+    pid = find_container()
+    monitor_memory_usage(pid)

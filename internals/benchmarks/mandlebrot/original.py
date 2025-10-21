@@ -70,18 +70,17 @@ def mandelbrot(n):
         for row in rows:
             write(row[1])
 
-if __name__ == '__main__':
-    import time
-    import io
+import time
+import io
 
-    n = 1000
+n = 1000
 
-    old_stdout = stdout
-    stdout = io.BytesIO()
-    mandelbrot(n)
-    stdout = old_stdout
-    print(time.time())
-    old_stdout = stdout
-    stdout = io.BytesIO()
-    mandelbrot(n)
-    stdout = old_stdout
+old_stdout = stdout
+stdout = io.BytesIO()
+mandelbrot(n)
+stdout = old_stdout
+print(time.time())
+old_stdout = stdout
+stdout = io.BytesIO()
+mandelbrot(n)
+stdout = old_stdout

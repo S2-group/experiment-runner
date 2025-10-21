@@ -48,11 +48,10 @@ def fannkuch(n):
             return max_flips
 
 
-if __name__ == "__main__":
-    import time
+import time
 
-    arg = DEFAULT_ARG
+arg = DEFAULT_ARG
 
-    fannkuch(arg)
-    print(time.time())
-    fannkuch(arg)
+fannkuch(arg)
+print(time.time())
+fannkuch(arg)

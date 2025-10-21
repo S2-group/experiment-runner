@@ -104,15 +104,14 @@ G3 = {
     "G": [["F", 1]],
 }
 
-if __name__ == "__main__":
-    import time
+import time
 
-    for _ in range(10000):
-        dijkstra(G, "E", "C")
-        dijkstra(G2, "E", "F")
-        dijkstra(G3, "E", "F")
-    print(time.time())
-    for _ in range(10000):
-        dijkstra(G, "E", "C")
-        dijkstra(G2, "E", "F")
-        dijkstra(G3, "E", "F")
+for _ in range(10000):
+    dijkstra(G, "E", "C")
+    dijkstra(G2, "E", "F")
+    dijkstra(G3, "E", "F")
+print(time.time())
+for _ in range(10000):
+    dijkstra(G, "E", "C")
+    dijkstra(G2, "E", "F")
+    dijkstra(G3, "E", "F")

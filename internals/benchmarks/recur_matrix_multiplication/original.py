@@ -148,11 +148,10 @@ def matrix_multiply_recursive(matrix_a: Matrix, matrix_b: Matrix) -> Matrix:
     return result
 
 
-if __name__ == "__main__":
-    import time
+import time
 
-    for _ in range(10000):
-        matrix_multiply_recursive(matrix_count_up, matrix_unordered)
-    print(time.time())
-    for _ in range(10000):
-        matrix_multiply_recursive(matrix_count_up, matrix_unordered)
+for _ in range(10000):
+    matrix_multiply_recursive(matrix_count_up, matrix_unordered)
+print(time.time())
+for _ in range(10000):
+    matrix_multiply_recursive(matrix_count_up, matrix_unordered)

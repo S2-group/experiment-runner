@@ -62,9 +62,8 @@ def run_benchmark(n, min_depth=4):
     check_tree(long_lived_tree)
 
 
-if __name__ == '__main__':
-    n = 18
+n = 18
 
-    run_benchmark(n)
-    print(time.time())
-    run_benchmark(n)
+run_benchmark(n)
+print(time.time())
+run_benchmark(n)
