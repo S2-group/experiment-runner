@@ -78,8 +78,13 @@ class RunnerConfig:
             "richards/original.py",
             "spectral_norm/original.py",
         ])
+        compilation_tool = FactorModel("compilation", [
+            "original",
+            "numba",
+            "cython",
+        ])
         self.run_table_model = RunTableModel(
-            factors = [benchmark_name],
+            factors = [benchmark_name, compilation_tool],
             data_columns=['cold_start_energy', 'warm_start_energy', 
                           'cold_start_cpu_util', 'warm_start_cpu_util', 
                           'cold_start_duration', 'warm_start_duration',
@@ -107,13 +112,31 @@ class RunnerConfig:
     def start_measurement(self, context: RunnerContext) -> None:
         """Perform any activity required for starting measurements."""
         benchmark_name = context.execute_run['benchmark']
+        compilation_tool = context.execute_run['compilation']
 
-        profiler_cmd = f'sudo energibridge \
+        if compilation_tool == "original":
+            profiler_cmd = f'sudo energibridge \
+                            --interval 20 \
+                            --max-execution 20 \
+                            --output {context.run_dir / "energibridge.csv"} \
+                            --summary \
+                            -- docker run -it --name test_container --memory=1792m --cpus=1 --cpuset-cpus="3" porg python3 {benchmark_name}'
+        elif compilation_tool == "numba":
+            profiler_cmd = f'sudo energibridge \
                         --interval 20 \
                         --max-execution 20 \
                         --output {context.run_dir / "energibridge.csv"} \
                         --summary \
                         -- docker run -it --name test_container --memory=1792m --cpus=1 --cpuset-cpus="3" pnumba python3 {benchmark_name}'
+        elif compilation_tool == "cython":
+            benchmark_name = benchmark_name.replace("/", ".").replace(".py", "")
+            profiler_cmd = f'sudo energibridge \
+                            --interval 20 \
+                            --max-execution 20 \
+                            --output {context.run_dir / "energibridge.csv"} \
+                            --summary \
+                            -- docker run -it --name test_container --memory=1792m --cpus=1 --cpuset-cpus="3" pcython python3 -c \'import {benchmark_name};\''
+
 
         time.sleep(2) # allow the process to run a little before measuring
         energibridge_log = open(f'{context.run_dir}/energibridge.log', 'w')
