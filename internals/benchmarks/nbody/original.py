@@ -112,7 +112,7 @@ def main(n, ref='sun'):
 
 import time
 
-n = 500000
+n = 300000
 
 main(n)
 print(time.time())

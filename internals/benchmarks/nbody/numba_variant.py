@@ -137,7 +137,7 @@ def main(n, ref='sun'):
 if __name__ == '__main__':
     import time
 
-    n = 500000
+    n = 300000
 
     main(n)
     print(time.time())

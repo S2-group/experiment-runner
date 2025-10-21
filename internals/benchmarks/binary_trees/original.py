@@ -62,7 +62,7 @@ def run_benchmark(n, min_depth=4):
     check_tree(long_lived_tree)
 
 
-n = 18
+n = 16
 
 run_benchmark(n)
 print(time.time())

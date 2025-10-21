@@ -55,7 +55,7 @@ def run_benchmark(n, min_depth=4):
 
 
 if __name__ == '__main__':
-    n = 18
+    n = 16
 
     run_benchmark(n)
     print(time.time())

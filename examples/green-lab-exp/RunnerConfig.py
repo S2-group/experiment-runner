@@ -115,7 +115,7 @@ class RunnerConfig:
                         --summary \
                         -- docker run -it --name test_container --memory=1792m --cpus=1 --cpuset-cpus="3" porg python3 {benchmark_name}'
 
-        time.sleep(1) # allow the process to run a little before measuring
+        time.sleep(2) # allow the process to run a little before measuring
         energibridge_log = open(f'{context.run_dir}/energibridge.log', 'w')
         self.profiler = subprocess.Popen(shlex.split(profiler_cmd), stdout=energibridge_log)
 
@@ -124,8 +124,8 @@ class RunnerConfig:
 
         # No interaction. We just run it for XX seconds.
         # Another example would be to wait for the target to finish, e.g. via `self.target.wait()`
-        output.console_log("Running program for 10 seconds")
-        time.sleep(10)
+        output.console_log("Running program for 15 seconds")
+        time.sleep(15)
 
     def stop_measurement(self, context: RunnerContext) -> None:
         """Perform any activity here required for stopping measurements."""
