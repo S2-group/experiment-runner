@@ -115,21 +115,6 @@ if __name__ == '__main__':
 
     n = 500000
 
-    start_time = time.time()
-    print(f"Benchmark start: {start_time}")
-
-    cold_start = time.time()
     main(n)
-    cold_end = time.time()
-    cold_duration = cold_end - cold_start
-    print(f"Cold start: {cold_start}")
-    print(f"Cold end: {cold_end}")
-    print(f"Cold duration: {cold_duration}")
-
-    warm_start = time.time()
+    print(time.time())
     main(n)
-    warm_end = time.time()
-    warm_duration = warm_end - warm_start
-    print(f"Warm start: {warm_start}")
-    print(f"Warm end: {warm_end}")
-    print(f"Warm duration: {warm_duration}")
