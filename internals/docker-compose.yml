@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  benchmark-runner:
+    build: .
+    container_name: green-lab-benchmark
+    cpus: '1.0'
+    mem_limit: 1792m
+    mem_reservation: 1792m
+    memswap_limit: 1792m
+
+    cpuset: '0'
+
+    security_opt:
+      - no-new-privileges:true
+    user: "1000:1000"
+
+    volumes:
+      - ./results:/app/results
+      - /tmp:/tmp
+
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONDONTWRITEBYTECODE=1
+      - NUMBA_CACHE_DIR=/tmp/numba_cache
+      - NUMBA_DISABLE_THREADING=1
+
+    command: ["tail", "-f", "/dev/null"]
+
+  monitor:
+    build: .
+    container_name: green-lab-monitor
+    cpus: '0.5'
+    mem_limit: 512m
+    
+    volumes:
+      - ./monitoring:/app/monitoring
+      - /sys/fs/cgroup:/sys/fs/cgroup:ro
+    
+    privileged: true
+    
+    command: ["python", "-c", "import time; time.sleep(3600)"]

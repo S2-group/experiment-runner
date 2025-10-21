@@ -1,0 +1,5 @@
+cython>=3.0.0
+numba>=0.60.0
+pyperf
+numpy
+psutil
