@@ -110,33 +110,25 @@ def matrix_multiply_recursive(matrix_a: Matrix, matrix_b: Matrix) -> Matrix:
     return matrix_multiply_recursive_cython(matrix_a, matrix_b)
 
 if __name__ == "__main__":
-    from doctest import testmod
+    import time
 
-    failure_count, test_count = testmod()
-    if not failure_count:
-        matrix_a = matrices[0]
-        for matrix_b in matrices[1:]:
-            print("Multiplying:")
-            for row in matrix_a:
-                print(row)
-            print("By:")
-            for row in matrix_b:
-                print(row)
-            print("Result:")
-            try:
-                result = matrix_multiply_recursive(matrix_a, matrix_b)
-                for row in result:
-                    print(row)
-                assert result == matrix_multiply(matrix_a, matrix_b)
-            except ValueError as e:
-                print(f"{e!r}")
-            print()
-            matrix_a = matrix_b
+    start_time = time.time()
+    print(f"Benchmark start: {start_time}")
 
-    print("Benchmark:")
-    from functools import partial
-    from timeit import timeit
+    cold_start = time.time()
+    for _ in range(10000):
+        matrix_multiply_recursive(matrix_count_up, matrix_unordered)
+    cold_end = time.time()
+    cold_duration = cold_end - cold_start
+    print(f"Cold start: {cold_start}")
+    print(f"Cold end: {cold_end}")
+    print(f"Cold duration: {cold_duration}")
 
-    mytimeit = partial(timeit, globals=globals(), number=100_000)
-    for func in ("matrix_multiply", "matrix_multiply_recursive"):
-        print(f"{func:>25}(): {mytimeit(f'{func}(matrix_count_up, matrix_unordered)')}")
+    warm_start = time.time()
+    for _ in range(10000):
+        matrix_multiply_recursive(matrix_count_up, matrix_unordered)
+    warm_end = time.time()
+    warm_duration = warm_end - warm_start
+    print(f"Warm start: {warm_start}")
+    print(f"Warm end: {warm_end}")
+    print(f"Warm duration: {warm_duration}")

@@ -53,15 +53,30 @@ G3 = {
     "G": [["F", 1]],
 }
 
-short_distance = dijkstra(G, "E", "C")
-print(short_distance)
-
-short_distance = dijkstra(G2, "E", "F")
-print(short_distance)
-
-short_distance = dijkstra(G3, "E", "F")
-print(short_distance)
-
 if __name__ == "__main__":
-    import doctest
-    doctest.testmod()
+    import time
+
+    start_time = time.time()
+    print(f"Benchmark start: {start_time}")
+
+    cold_start = time.time()
+    for _ in range(10000):
+        dijkstra(G, "E", "C")
+        dijkstra(G2, "E", "F")
+        dijkstra(G3, "E", "F")
+    cold_end = time.time()
+    cold_duration = cold_end - cold_start
+    print(f"Cold start: {cold_start}")
+    print(f"Cold end: {cold_end}")
+    print(f"Cold duration: {cold_duration}")
+
+    warm_start = time.time()
+    for _ in range(10000):
+        dijkstra(G, "E", "C")
+        dijkstra(G2, "E", "F")
+        dijkstra(G3, "E", "F")
+    warm_end = time.time()
+    warm_duration = warm_end - warm_start
+    print(f"Warm start: {warm_start}")
+    print(f"Warm end: {warm_end}")
+    print(f"Warm duration: {warm_duration}")

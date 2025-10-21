@@ -60,10 +60,27 @@ def insertion_sort(collection: MutableSequence[T]) -> MutableSequence[T]:
 
 
 if __name__ == "__main__":
-    from doctest import testmod
+    import time
+    import random
 
-    testmod()
+    unsorted = list(range(5000))
+    random.shuffle(unsorted)
 
-    user_input = input("Enter numbers separated by a comma:\n").strip()
-    unsorted = [int(item) for item in user_input.split(",")]
-    print(f"{insertion_sort(unsorted) = }")
+    start_time = time.time()
+    print(f"Benchmark start: {start_time}")
+
+    cold_start = time.time()
+    insertion_sort(unsorted.copy())
+    cold_end = time.time()
+    cold_duration = cold_end - cold_start
+    print(f"Cold start: {cold_start}")
+    print(f"Cold end: {cold_end}")
+    print(f"Cold duration: {cold_duration}")
+
+    warm_start = time.time()
+    insertion_sort(unsorted.copy())
+    warm_end = time.time()
+    warm_duration = warm_end - warm_start
+    print(f"Warm start: {warm_start}")
+    print(f"Warm end: {warm_end}")
+    print(f"Warm duration: {warm_duration}")
