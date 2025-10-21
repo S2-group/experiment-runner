@@ -55,13 +55,12 @@ def main():
         vBv += ue * ve
         vv  += ve * ve
 
-if __name__ == '__main__':
-    import time
+import time
 
-    pool = Pool(processes=4)
-    n = 500
+pool = Pool(processes=4)
+n = 500
 
-    argv = ['spectral_norm', str(n)]
-    main()
-    print(time.time())
-    main()
+argv = ['spectral_norm', str(n)]
+main()
+print(time.time())
+main()

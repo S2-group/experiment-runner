@@ -5,7 +5,6 @@ root="${1:-/app/benchmarks}"
 
 echo "Scanning for original.py under: $root"
 
-# Sanity check: Cython present?
 python - <<'PY'
 import sys
 try:
@@ -19,7 +18,6 @@ PY
 
 found_any=0
 
-# Find every file literally named 'original.py'
 while IFS= read -r -d '' py; do
   found_any=1
   dir="$(dirname "$py")"
@@ -28,7 +26,6 @@ while IFS= read -r -d '' py; do
   echo "==> Compiling: $py"
   (
     cd "$dir"
-    # Use the Cython module path (not 'cythonize')
     python -m Cython.Build.Cythonize -3 -i \
       -X boundscheck=False \
       -X initializedcheck=False \

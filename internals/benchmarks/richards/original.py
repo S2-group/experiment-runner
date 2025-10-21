@@ -415,11 +415,10 @@ class Richards(object):
         return True
 
 
-if __name__ == "__main__":
-    import time
+import time
 
-    richard = Richards()
+richard = Richards()
 
-    richard.run(100)
-    print(time.time())
-    richard.run(100)
+richard.run(100)
+print(time.time())
+richard.run(100)

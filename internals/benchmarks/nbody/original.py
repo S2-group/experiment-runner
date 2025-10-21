@@ -110,11 +110,10 @@ def main(n, ref='sun'):
     offset_momentum(BODIES[ref])
     advance(0.01, n)
 
-if __name__ == '__main__':
-    import time
+import time
 
-    n = 500000
+n = 500000
 
-    main(n)
-    print(time.time())
-    main(n)
+main(n)
+print(time.time())
+main(n)

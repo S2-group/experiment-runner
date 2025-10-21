@@ -59,13 +59,12 @@ def insertion_sort(collection: MutableSequence[T]) -> MutableSequence[T]:
     return collection
 
 
-if __name__ == "__main__":
-    import time
-    import random
+import time
+import random
 
-    unsorted = list(range(5000))
-    random.shuffle(unsorted)
+unsorted = list(range(5000))
+random.shuffle(unsorted)
 
-    insertion_sort(unsorted.copy())
-    print(time.time())
-    insertion_sort(unsorted.copy())
+insertion_sort(unsorted.copy())
+print(time.time())
+insertion_sort(unsorted.copy())
