@@ -83,10 +83,13 @@ def main():
 if __name__ == '__main__':
     import time
 
-    pool = Pool(processes=4)
+    # pool = Pool(processes=4)
     n = 500
 
     argv = ['spectral_norm', str(n)]
-    main()
+    with Pool(processes=4) as pool:
+        main()
     print(time.time())
-    main()
+
+    with Pool(processes=4) as pool:
+        main()

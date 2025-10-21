@@ -63,12 +63,14 @@ def compute_rows(n, f):
             yield from ordered_rows(unordered_rows, n)
 
 def mandelbrot(n):
-    write = stdout.buffer.write
+#    write = stdout.buffer.write
 
     with closing(compute_rows(n, compute_row)) as rows:
-        write("P4\n{0} {0}\n".format(n).encode())
+        #print("P4\n{0} {0}\n".format(n).encode())
         for row in rows:
-            write(row[1])
+            pass
+            #print(row[1])
+
 
 if __name__ == '__main__':
     import time

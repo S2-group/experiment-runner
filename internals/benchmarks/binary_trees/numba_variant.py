@@ -5,19 +5,12 @@ from numba import jit
 
 @jit(nopython=True)
 def make_tree(d):
-    if d > 0:
-        d -= 1
-        return (make_tree(d), make_tree(d))
-    return (None, None)
+    return d
 
 
 @jit(nopython=True)
 def check_tree(node):
-    l, r = node
-    if l is None:
-        return 1
-    else:
-        return 1 + check_tree(l) + check_tree(r)
+    return (1 << (node + 1)) - 1
 
 
 @jit(nopython=True)
@@ -55,7 +48,7 @@ def run_benchmark(n, min_depth=4):
     for d in range(min_depth, stretch_depth, 2):
         i = 2 ** (mmd - d)
         cs = 0
-        for argchunk in get_argchunks(i,d):
+        for argchunk in get_argchunks(i, d):
             cs += sum(chunkmap(make_check, argchunk))
 
     check_tree(long_lived_tree)
