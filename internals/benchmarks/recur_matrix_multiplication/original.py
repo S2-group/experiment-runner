@@ -150,8 +150,8 @@ def matrix_multiply_recursive(matrix_a: Matrix, matrix_b: Matrix) -> Matrix:
 
 import time
 
-for _ in range(10000):
+for _ in range(50000):
     matrix_multiply_recursive(matrix_count_up, matrix_unordered)
 print(time.time())
-for _ in range(10000):
+for _ in range(50000):
     matrix_multiply_recursive(matrix_count_up, matrix_unordered)

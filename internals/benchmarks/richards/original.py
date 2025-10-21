@@ -419,6 +419,6 @@ import time
 
 richard = Richards()
 
-richard.run(100)
+richard.run(32)
 print(time.time())
-richard.run(100)
+richard.run(32)

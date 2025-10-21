@@ -61,7 +61,7 @@ if __name__ == "__main__":
     import time
     import random
 
-    array = list(range(10000))
+    array = list(range(250000))
     random.shuffle(array)
 
     merge_sort_public(array.copy())  # compile first

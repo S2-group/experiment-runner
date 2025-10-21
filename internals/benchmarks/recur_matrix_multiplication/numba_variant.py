@@ -175,8 +175,8 @@ def matrix_multiply_recursive(matrix_a, matrix_b):
 if __name__ == "__main__":
     import time
 
-    for _ in range(10000):
+    for _ in range(50000):
         matrix_multiply_recursive(matrix_count_up, matrix_unordered)
     print(time.time())
-    for _ in range(10000):
+    for _ in range(50000):
         matrix_multiply_recursive(matrix_count_up, matrix_unordered)

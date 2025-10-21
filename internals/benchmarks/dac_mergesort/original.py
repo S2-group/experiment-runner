@@ -110,7 +110,7 @@ def merge_sort(array: list) -> list:
 import time
 import random
 
-array = list(range(10000))
+array = list(range(250000))
 random.shuffle(array)
 
 merge_sort(array.copy())

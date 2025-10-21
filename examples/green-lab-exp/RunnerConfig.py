@@ -66,11 +66,25 @@ class RunnerConfig:
     def create_run_table_model(self) -> RunTableModel:
         """Create and return the run_table model here. A run_table is a List (rows) of tuples (columns),
         representing each run performed"""
-        sampling_factor = FactorModel("sampling", [10, 50, 100, 200, 500, 1000])
+        benchmark_name = FactorModel("benchmark", [
+            "binary_trees/original.py",
+            "dac_mergesort/original.py",
+            "dijkstra/original.py",
+            "fannkuch/original.py",
+            "insertionsort/original.py",
+            "mandlebrot/original.py",
+            "nbody/original.py",
+            "recur_matrix_multiplication/original.py",
+            "richards/original.py",
+            "spectral_norm/original.py",
+        ])
         self.run_table_model = RunTableModel(
-            factors = [sampling_factor],
-            data_columns=['cold_start_energy', 'warm_start_energy']
-
+            factors = [benchmark_name],
+            data_columns=['cold_start_energy', 'warm_start_energy', 
+                          'cold_start_cpu_util', 'warm_start_cpu_util', 
+                          'cold_start_duration', 'warm_start_duration',
+                          'cold_start_memory_util', 'warm_start_memory_util'],
+            repetitions = 15,
         )
         return self.run_table_model
 
@@ -92,16 +106,16 @@ class RunnerConfig:
 
     def start_measurement(self, context: RunnerContext) -> None:
         """Perform any activity required for starting measurements."""
-        sampling_interval = context.execute_run['sampling']
+        benchmark_name = context.execute_run['benchmark']
 
         profiler_cmd = f'sudo energibridge \
-                        --interval {sampling_interval} \
+                        --interval 20 \
                         --max-execution 20 \
                         --output {context.run_dir / "energibridge.csv"} \
                         --summary \
-                        -- python3 examples/green-lab-exp/primer.py'
+                        -- docker run -it --name test_container --memory=1792m --cpus=1 --cpuset-cpus="3" porg python3 {benchmark_name}'
 
-        #time.sleep(1) # allow the process to run a little before measuring
+        time.sleep(1) # allow the process to run a little before measuring
         energibridge_log = open(f'{context.run_dir}/energibridge.log', 'w')
         self.profiler = subprocess.Popen(shlex.split(profiler_cmd), stdout=energibridge_log)
 
@@ -110,8 +124,8 @@ class RunnerConfig:
 
         # No interaction. We just run it for XX seconds.
         # Another example would be to wait for the target to finish, e.g. via `self.target.wait()`
-        output.console_log("Running program for 20 seconds")
-        time.sleep(20)
+        output.console_log("Running program for 10 seconds")
+        time.sleep(10)
 
     def stop_measurement(self, context: RunnerContext) -> None:
         """Perform any activity here required for stopping measurements."""
@@ -128,14 +142,19 @@ class RunnerConfig:
         Returns a dictionary with keys `self.run_table_model.data_columns` and their values populated"""
 
         # energibridge.csv - Power consumption of the whole system
-        with open(context.run_dir / "energibridge.log", "r") as f:
+        time.sleep(1)
+        with open("/tmp/test_container.log", "r") as f:
             lines = f.readlines()
             timestamp = int(lines[0].strip())
+        with open("/tmp/test_container_memory_usage", "r") as f:
+            lines = f.readlines()
+            cold_start_memory_util = int(lines[0].strip())
+            warm_start_memory_util = int(lines[1].strip())
 
 
         df = pd.read_csv(context.run_dir / f"energibridge.csv")
         headers = df.columns.tolist()
-        core_id = 0 # TODO change me to the core that the benchmark is pinned to
+        core_id = 3 # we use 3
 
         # assert Time column exists
         if "Time" not in headers:
@@ -154,13 +173,28 @@ class RunnerConfig:
         zero_energy_columns(phase2)
         cold_start_energy = phase1[f'CORE{core_id}_ENERGY (J)'].iloc[-1]
         warm_start_energy = phase2[f'CORE{core_id}_ENERGY (J)'].iloc[-1]
+        cold_start_cpu_util = phase1[f'CPU_USAGE_{core_id}'].mean()
+        warm_start_cpu_util = phase2[f'CPU_USAGE_{core_id}'].mean()
+        cold_start_duration = phase1['Delta'].sum()
+        warm_start_duration = phase2['Delta'].sum()
+
         print(f"Cold Start Energy (J): {cold_start_energy}")
         print(f"Warm Start Energy (J): {warm_start_energy}")
+        print(f"Cold Start CPU Utilization (%): {cold_start_cpu_util}")
+        print(f"Warm Start CPU Utilization (%): {warm_start_cpu_util}")
+        print(f"Cold Start Duration (ms): {cold_start_duration}")
+        print(f"Warm Start Duration (ms): {warm_start_duration}")
 
 
         run_data = {
             'cold_start_energy': round(cold_start_energy, 3),
-            'warm_start_energy': round(warm_start_energy, 3)
+            'warm_start_energy': round(warm_start_energy, 3),
+            'cold_start_cpu_util': round(cold_start_cpu_util, 3),
+            'warm_start_cpu_util': round(warm_start_cpu_util, 3),
+            'cold_start_duration': round(cold_start_duration, 3),
+            'warm_start_duration': round(warm_start_duration, 3),
+            'cold_start_memory_util': cold_start_memory_util,
+            'warm_start_memory_util': warm_start_memory_util,
         }
         return run_data
 

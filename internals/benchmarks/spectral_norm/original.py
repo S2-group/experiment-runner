@@ -58,7 +58,7 @@ def main():
 import time
 
 pool = Pool(processes=4)
-n = 500
+n = 600
 
 argv = ['spectral_norm', str(n)]
 main()

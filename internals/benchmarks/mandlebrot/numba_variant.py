@@ -86,7 +86,7 @@ if __name__ == '__main__':
     import time
     import io
 
-    n = 1000
+    n = 2000
 
     old_stdout = stdout
     stdout = io.BytesIO()

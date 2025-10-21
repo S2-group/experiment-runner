@@ -106,12 +106,12 @@ G3 = {
 
 import time
 
-for _ in range(10000):
+for _ in range(200000):
     dijkstra(G, "E", "C")
     dijkstra(G2, "E", "F")
     dijkstra(G3, "E", "F")
 print(time.time())
-for _ in range(10000):
+for _ in range(200000):
     dijkstra(G, "E", "C")
     dijkstra(G2, "E", "F")
     dijkstra(G3, "E", "F")
