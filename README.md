@@ -84,15 +84,15 @@ If Experiment Runner is helping your research, consider to cite it as follows, t
 
 ``` 
 @article{SCICO_2025,
-	title = {{Experiment {Runner}: a {Tool} for the {Automatic} {Orchestration} of {Experiments} {Targeting} {Software} {Systems}}},
-	issn = {0167-6423},
-	url = {https://www.sciencedirect.com/science/article/pii/S0167642325001546},
-	doi = {https://doi.org/10.1016/j.scico.2025.103415},
-	journal = {Science of Computer Programming},
-	author = {{Max Karsten and {Andrei Calin} Dragomir and Radu Apsan and Vincenzo Stoico and Ivano Malavolta}},
-	year = {2025},
-	pages = {103415},
-	url = {https://www.sciencedirect.com/science/article/pii/S0167642325001546}
+  title = {{Experiment {Runner}: a {Tool} for the {Automatic} {Orchestration} of {Experiments} {Targeting} {Software} {Systems}}},
+  issn = {0167-6423},
+  journal = {Science of Computer Programming},
+  author = {Max Karsten and {Andrei Calin} Dragomir and Radu Apsan and Vincenzo Stoico and Ivano Malavolta},
+  year = {2025},
+  pages = {103415},
+  volume = {1},
+  url = {https://www.sciencedirect.com/science/article/pii/S0167642325001546},
+  doi = {https://doi.org/10.1016/j.scico.2025.103415}
 }
 ``` 
 
