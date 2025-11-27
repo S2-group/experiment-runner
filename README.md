@@ -4,7 +4,7 @@
 
 Experiment Runner is a generic framework to automatically execute measurement-based experiments on any platform. The experiments are user-defined, can be completely customized, and expressed in python code!
 
-*(Experiment Runner is a generalization of our previous successful tool, [Robot Runner](https://github.com/S2-group/robot-runner), for which you can read more in our [ICSE 2021 tool demo paper](https://github.com/S2-group/robot-runner/tree/master/documentation/ICSE_2021.pdf).)*
+The technical details, main features, software architecture, and example experiment using Experiment Runner are presented in our [SCICO 2025 publication](https://www.sciencedirect.com/science/article/pii/S0167642325001546).
 
 ## Features
 
