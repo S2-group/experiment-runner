@@ -5,10 +5,12 @@ from ConfigValidator.Config.Models.FactorModel import FactorModel
 from ConfigValidator.Config.Models.RunnerContext import RunnerContext
 from ConfigValidator.Config.Models.OperationType import OperationType
 from ProgressManager.Output.OutputProcedure import OutputProcedure as output
+from ProgressManager.Validation.RequirementsValidator import (validate_experiment_requirements)
 
 from typing import Dict, Any, Optional
 from pathlib import Path
 from os.path import dirname, realpath
+import os
 
 import subprocess
 import shlex
@@ -26,7 +28,8 @@ class RunnerConfig:
     """The path in which Experiment Runner will create a folder with the name `self.name`, in order to store the
     results from this experiment. (Path does not need to exist - it will be created if necessary.)
     Output path defaults to the config file's path, inside the folder 'experiments'"""
-    results_output_path:        Path             = ROOT_DIR / 'experiments'
+    default_output = ROOT_DIR / "experiments"
+    results_output_path:        Path            = Path(os.getenv("EXPERIMENT_RUNNER_OUTPUT_PATH", str(default_output)))
 
     """Experiment operation type. Unless you manually want to initiate each run, use `OperationType.AUTO`."""
     operation_type:             OperationType   = OperationType.AUTO
@@ -50,6 +53,28 @@ class RunnerConfig:
             (RunnerEvents.STOP_RUN         , self.stop_run         ),
             (RunnerEvents.POPULATE_RUN_DATA, self.populate_run_data),
             (RunnerEvents.AFTER_EXPERIMENT , self.after_experiment )
+        ])"""Path to log file for energy validation report. Relative to experiment output directory."""
+    energy_validation_log_file: str             = "energy_validation_report.log"
+
+    """List of data column names that contain energy measurements (e.g., ['energy', 'joules', 'watts'])."""
+    energy_validation_columns:  List[str]       = []
+
+    # Dynamic configurations can be one-time satisfied here before the program takes the config as-is
+    # e.g. Setting some variable based on some criteria
+    def __init__(self):
+        """Executes immediately after program start, on config load"""
+
+        EventSubscriptionController.subscribe_to_multiple_events([
+            (RunnerEvents.VALIDATE_EXPERIMENT, self.validate_experiment),
+            (RunnerEvents.BEFORE_EXPERIMENT  , self.before_experiment),
+            (RunnerEvents.BEFORE_RUN         , self.before_run       ),
+            (RunnerEvents.START_RUN          , self.start_run        ),
+            (RunnerEvents.START_MEASUREMENT  , self.start_measurement),
+            (RunnerEvents.INTERACT           , self.interact         ),
+            (RunnerEvents.STOP_MEASUREMENT   , self.stop_measurement ),
+            (RunnerEvents.STOP_RUN           , self.stop_run         ),
+            (RunnerEvents.POPULATE_RUN_DATA  , self.populate_run_data),
+            (RunnerEvents.AFTER_EXPERIMENT   , self.after_experiment )
         ])
         
         self.latest_log = None
@@ -67,6 +92,9 @@ class RunnerConfig:
             data_columns=['timestamp', 'channel_1(avg)', 'channel_2(off)', 'channel_3(off)']) # Channel 1 is in Amps
 
         return self.run_table_model
+    
+    def validate_experiment(self) -> None:
+        validate_experiment_requirements(Path(__file__))
 
     def before_experiment(self) -> None:
         """Perform any activity required before starting the experiment here

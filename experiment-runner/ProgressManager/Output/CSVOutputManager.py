@@ -38,10 +38,14 @@ class CSVOutputManager(BaseOutputManager):
             with open(self._experiment_path / 'run_table.csv', 'w', newline='') as myfile:
                 writer = csv.DictWriter(myfile, fieldnames=list(run_table[0].keys()))
                 writer.writeheader()
+                
                 for data in run_table:
-                    data['__done'] = data['__done'].name
-                    writer.writerow(data)
-        except:
+                    row = data.copy()
+                    
+                    if isinstance(row['__done'], RunProgress):
+                        row['__done'] = row['__done'].name
+                    writer.writerow(row)
+        except Exception as e:
             raise ExperimentOutputFileDoesNotExistError
 
     # TODO: Nice To have

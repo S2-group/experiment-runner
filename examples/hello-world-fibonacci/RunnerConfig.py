@@ -5,6 +5,9 @@ from ConfigValidator.Config.Models.FactorModel import FactorModel
 from ConfigValidator.Config.Models.RunnerContext import RunnerContext
 from ConfigValidator.Config.Models.OperationType import OperationType
 from ProgressManager.Output.OutputProcedure import OutputProcedure as output
+from ProgressManager.Validation.RequirementsValidator import validate_experiment_requirements
+import shutil
+import sys
 
 from typing import Dict, List, Any, Optional
 from pathlib import Path
@@ -19,7 +22,6 @@ import shlex
 
 class RunnerConfig:
     ROOT_DIR = Path(dirname(realpath(__file__)))
-
     # ================================ USER SPECIFIC CONFIG ================================
     """The name of the experiment."""
     name:                       str             = "new_runner_experiment"
@@ -27,7 +29,8 @@ class RunnerConfig:
     """The path in which Experiment Runner will create a folder with the name `self.name`, in order to store the
     results from this experiment. (Path does not need to exist - it will be created if necessary.)
     Output path defaults to the config file's path, inside the folder 'experiments'"""
-    results_output_path:        Path             = ROOT_DIR / 'experiments'
+    default_output = ROOT_DIR / "experiments"
+    results_output_path:        Path            = Path(os.getenv("EXPERIMENT_RUNNER_OUTPUT_PATH", str(default_output)))
 
     """Experiment operation type. Unless you manually want to initiate each run, use `OperationType.AUTO`."""
     operation_type:             OperationType   = OperationType.AUTO
@@ -36,21 +39,24 @@ class RunnerConfig:
     This can be essential to accommodate for cooldown periods on some systems."""
     time_between_runs_in_ms:    int             = 1000
 
+    """Path to log file for energy validation report. Relative to experiment output directory."""
+    energy_validation_log_file: str             = "energy_validation_report.log"
     # Dynamic configurations can be one-time satisfied here before the program takes the config as-is
     # e.g. Setting some variable based on some criteria
     def __init__(self):
         """Executes immediately after program start, on config load"""
 
         EventSubscriptionController.subscribe_to_multiple_events([
-            (RunnerEvents.BEFORE_EXPERIMENT, self.before_experiment),
-            (RunnerEvents.BEFORE_RUN       , self.before_run       ),
-            (RunnerEvents.START_RUN        , self.start_run        ),
-            (RunnerEvents.START_MEASUREMENT, self.start_measurement),
-            (RunnerEvents.INTERACT         , self.interact         ),
-            (RunnerEvents.STOP_MEASUREMENT , self.stop_measurement ),
-            (RunnerEvents.STOP_RUN         , self.stop_run         ),
-            (RunnerEvents.POPULATE_RUN_DATA, self.populate_run_data),
-            (RunnerEvents.AFTER_EXPERIMENT , self.after_experiment )
+            (RunnerEvents.VALIDATE_EXPERIMENT, self.validate_experiment),
+            (RunnerEvents.BEFORE_EXPERIMENT  , self.before_experiment  ),
+            (RunnerEvents.BEFORE_RUN         , self.before_run         ),
+            (RunnerEvents.START_RUN          , self.start_run          ),
+            (RunnerEvents.START_MEASUREMENT  , self.start_measurement  ),
+            (RunnerEvents.INTERACT           , self.interact           ),
+            (RunnerEvents.STOP_MEASUREMENT   , self.stop_measurement   ),
+            (RunnerEvents.STOP_RUN           , self.stop_run           ),
+            (RunnerEvents.POPULATE_RUN_DATA  , self.populate_run_data  ),
+            (RunnerEvents.AFTER_EXPERIMENT   , self.after_experiment   )
         ])
         self.run_table_model = None  # Initialized later
         output.console_log("Custom config loaded")
@@ -71,6 +77,10 @@ class RunnerConfig:
             data_columns=["energy", "runtime", "memory"]
         )
         return self.run_table_model
+
+    def validate_experiment(self) -> None:
+        """Validate the experiment setup before starting."""
+        validate_experiment_requirements(Path(__file__))
 
     def before_experiment(self) -> None:
         """Perform any activity required before starting the experiment here
@@ -93,11 +103,15 @@ class RunnerConfig:
         fib_type = context.execute_run["fib_type"]
         problem_size = context.execute_run["problem_size"]
 
-        profiler_cmd = f'sudo energibridge \
-                        --max-execution 20 \
-                        --output {context.run_dir / "energibridge.csv"} \
-                        --summary \
-                        python examples/hello-world-fibonacci/fibonacci_{fib_type}.py {problem_size}'
+        profiler_cmd = (
+            f'energibridge '
+            f'--max-execution 20 '
+            f'--output {context.run_dir / "energibridge.csv"} '
+            f'--summary '
+            f'{sys.executable} '  # instead of bare "python"
+            f'examples/hello-world-fibonacci/fibonacci_{fib_type}.py '
+            f'{problem_size}'
+        )
 
         energibridge_log = open(f'{context.run_dir}/energibridge.log', 'w')
         self.profiler = subprocess.Popen(shlex.split(profiler_cmd), stdout=energibridge_log)
@@ -124,15 +138,13 @@ class RunnerConfig:
         You can also store the raw measurement data under `context.run_dir`
         Returns a dictionary with keys `self.run_table_model.data_columns` and their values populated"""
 
-        # energibridge.csv - Power consumption of the whole system
-        df = pd.read_csv(context.run_dir / f"energibridge.csv")
-        run_data = {
-            'dram_energy': round(df['DRAM_ENERGY (J)'].iloc[-1] - df['DRAM_ENERGY (J)'].iloc[0], 3),
-            'package_energy': round(df['PACKAGE_ENERGY (J)'].iloc[-1] - df['PACKAGE_ENERGY (J)'].iloc[0], 3),
-            'pp0_energy': round(df['PP0_ENERGY (J)'].iloc[-1] - df['PP0_ENERGY (J)'].iloc[0], 3),
-            'pp1_energy': round(df['PP1_ENERGY (J)'].iloc[-1] - df['PP1_ENERGY (J)'].iloc[0], 3),
+        # energibridge.csv - Power consumption of the whole system        
+        df = pd.read_csv(context.run_dir / "energibridge.csv")
+        return {
+            "energy":  round(df["CPU_ENERGY (J)"].iloc[-1] - df["CPU_ENERGY (J)"].iloc[0], 3),
+            "runtime": round(df["Delta"].sum() / 1000, 3),   # ms -> s
+            "memory":  round(df["USED_MEMORY"].iloc[-1] / 1e9, 3),  # bytes -> GB
         }
-        return run_data
 
     def after_experiment(self) -> None:
         """Perform any activity required after stopping the experiment here

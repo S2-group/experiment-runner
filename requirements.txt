@@ -3,3 +3,6 @@ psutil
 tabulate
 dill
 jsonpickle
+flask
+requests
+waitress

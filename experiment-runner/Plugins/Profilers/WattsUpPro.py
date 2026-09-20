@@ -15,9 +15,11 @@ class WattsUpPro(object):
         if port is None:
             system = uname()[0]
             if system == 'Darwin':          # OS X
-                port = '/dev/tty.usbserial-A1000wT3'
+                #port = '/dev/tty.usbserial-A1000wT3'
+                port = os.getenv("WATTS_UP_PRO_PORT_MACOS", '/dev/tty.usbserial-A1000wT3')
             elif system == 'Linux':
-                port = '/dev/ttyUSB0'
+                #port = '/dev/ttyUSB0'
+                port = os.getenv("WATTS_UP_PRO_PORT_LINUX", '/dev/ttyUSB0')
 
         if not os.path.exists(port):
                 print( '')

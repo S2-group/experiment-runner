@@ -29,32 +29,40 @@ class ConfigCreate:
         try:
             destination = ""
             if args is None:
-                filepath = __file__.split('/')
-                filepath.pop()
-                filepath = '/'.join(filepath) + "/../../../examples/"
-                destination = os.path.abspath(filepath)
+                #filepath = __file__.split('/')
+                #filepath.pop()
+                #filepath = '/'.join(filepath) + "/../../../examples/"
+                #filepath = os.getenv("EXAMPLES_PATH", '/'.join(filepath) + "/../../../examples/")
+                #destination = os.path.abspath(filepath)
+                defult_path = Path(__file__).resolve().parent[3] / "examples"
+                destination = os.getenv("EXAMPLES_PATH", str(defult_path))
             else:
                 if len(args) == 3:
-                    destination = args[2]
+                    destination = Path(args[2])
                 else:
                     raise CommandNotRecognisedError
         except:
             raise CommandNotRecognisedError
 
-        if destination[-1] != "/":
-            destination += "/"
+        #if destination[-1] != "/":
+            #destination += "/"
+        destination = desstination.resolve()
 
         if not is_path_exists_or_creatable_portable(destination):
             raise InvalidUserSpecifiedPathError(destination)
         
-        module = RunnerConfig
-        src = inspect.getmodule(module).__file__
-        dest_folder = destination
+        #module = RunnerConfig
+        #src = inspect.getmodule(module).__file__
+        #dest_folder = destination
         #destination += src.split('/')[-1]
-        config_unique_name = 'RunnerConfig-' + str(uuid.uuid1()) + '.py'
         # config_unique_name = 'RunnerConfig-' + 'foobar' + '.py' # FIXME: DEBUG ONLY BUILDS
-        destination += config_unique_name
-        copyfile(src, destination)
+        #destination += config_unique_name
+        #copyfile(src, destination)
+        src = Path(inspect.getmodule(RunnerConfig).__file__).resolve()
+        config_unique_name = 'RunnerConfig-' + str(uuid.uuid1()) + '.py'
+        destination.mkdir(parents=True, exist_ok=True)
+        dest_file = destination / config_unique_name
+        copyfile(src, dest_file)
         output.console_log_OK(
             f"Successfully created new config with unique identifier in: {dest_folder}" +
             f"\nWith the unique name (please rename): {config_unique_name}"

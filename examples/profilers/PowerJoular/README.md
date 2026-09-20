@@ -31,3 +31,4 @@ python experiment-runner/ examples/PowerJoular/RunnerConfig.py
 
 The results are generated in the `examples/linux-powerjoular-profiling/experiments` folder.
 
+In case there are anomalies such as null, absent, or negative values, a report will be generated in the `examples/linux-powerjoular-profiling/experiments` folder.

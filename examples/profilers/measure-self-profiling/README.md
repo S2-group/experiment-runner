@@ -31,6 +31,8 @@ python experiment-runner/ examples/measure-self-profiling/RunnerConfig.py
 The results are generated in the `examples/measure-self-profiling/experiments` folder, and are added to your run table model.
 A log file can be specified to additionally save the full energibridge logs to a separate file.
 
+In case there are anomalies such as null, absent, or negative values, a report will be generated in the `examples/measure-self-profiling/experiments` folder.
+
 **!!! WARNING !!!**: COLUMNS IN THE `energibridge.log` FILES CAN BE DIFFERENT ACROSS MACHINES.
 ADJUST YOUR ANALYSIS OF THE RESULTS ACCORDINGLY.
 

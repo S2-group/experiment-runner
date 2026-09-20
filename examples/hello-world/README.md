@@ -14,3 +14,4 @@ python experiment-runner/ examples/hello-world/RunnerConfig.py
 ## Results
 
 The results are generated in the `examples/hello-world/experiments` folder.
+In case there are anomalies such as null, absent, or negative values, a report will be generated in the `examples/hello-world/experiments` folder.

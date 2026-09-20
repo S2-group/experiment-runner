@@ -13,6 +13,11 @@ from ConfigValidator.Config.RunnerConfig import RunnerConfig
 from ProgressManager.Output.OutputProcedure import OutputProcedure as output
 from EventManager.EventSubscriptionController import EventSubscriptionController
 from ConfigValidator.CustomErrors.ProgressErrors import AllRunsCompletedOnRestartError
+from ProgressManager.Validation.AnomaliesChecker import (
+    ResultsValidator,
+    AnomalyReport
+)
+from pathlib import Path
 
 
 ###     =========================================================
@@ -34,8 +39,20 @@ class ExperimentController:
         self.config = config
         self.metadata = metadata
 
+        self.validation_state = 0
+        self.validation_log_file_path = (self.config.experiment_path / self.config.energy_validation_log_file)
+        
         self.csv_data_manager = CSVOutputManager(self.config.experiment_path)
         self.json_data_manager = JSONOutputManager(self.config.experiment_path)
+        # -- Validate experiment setup
+        # TODO: From the user perspective, it would be nice to know if are any possible issues with the experiment before staring the experiment runs. For example, if the config hooks are not properly defined, or if there are any issues with the config file itself
+
+        output.console_log_WARNING("Calling validate_experiment config hook")
+        try:
+            EventSubscriptionController.raise_event(RunnerEvents.VALIDATE_EXPERIMENT)
+        except BaseError as e:
+            output.console_log_FAIL(f"Experiment validation failed: {e}")
+            raise
         run_tbl = self.config.create_run_table_model()
         
         # Add in the proper data column for energibridge
@@ -54,6 +71,12 @@ class ExperimentController:
         except FileExistsError:
             output.console_log_WARNING(f"Reusing already existing experiment path: {self.config.experiment_path}")
             existing_run_table = self.csv_data_manager.read_run_table()
+
+            for run in existing_run_table:
+                if run['__done'] == RunProgress.RUNNING:
+                    run['__done'] = RunProgress.TODO
+            self.csv_data_manager.write_run_table(existing_run_table) 
+            print("[MASTER] Restored RUNNING -> TODO after restart")
 
             # First sanity check. If there is no "TODO" in the __done column, simply abort.
             todo_run_found = any([current_run['__done'] != RunProgress.DONE for current_run in existing_run_table])
@@ -139,7 +162,27 @@ class ExperimentController:
             )
             perform_run.start()
             perform_run.join()
+            
+            # -- Checks for anomalies in the run raw result
+            run_id = current_run["__run_id"]
+            treatment_levels = {
+                k: v
+                for k, v in current_run.items()
+                if not k.startswith("__")
+            }
 
+            run_dir = self.config.experiment_path / run_id
+            run_report = ResultsValidator.validate_output_log(
+                run_dir,
+                run_id,
+                treatment_levels,
+            )
+            if run_report.has_anomalies():
+                ResultsValidator.update_report(
+                    run_report,
+                    self.validation_log_file_path
+                )
+            
             time_btwn_runs = self.config.time_between_runs_in_ms
             if time_btwn_runs > 0:
                 output.console_log_bold(f"Run fully ended, waiting for: {time_btwn_runs}ms == {time_btwn_runs / 1000}s")

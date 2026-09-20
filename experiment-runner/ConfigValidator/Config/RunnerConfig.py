@@ -1,3 +1,5 @@
+import os
+
 from EventManager.Models.RunnerEvents import RunnerEvents
 from EventManager.EventSubscriptionController import EventSubscriptionController
 from ConfigValidator.Config.Models.RunTableModel import RunTableModel
@@ -22,7 +24,9 @@ class RunnerConfig:
     """The path in which Experiment Runner will create a folder with the name `self.name`, in order to store the
     results from this experiment. (Path does not need to exist - it will be created if necessary.)
     Output path defaults to the config file's path, inside the folder 'experiments'"""
-    results_output_path:        Path            = ROOT_DIR / 'experiments'
+    #results_output_path:        Path            = ROOT_DIR / 'experiments'
+    default_output = ROOT_DIR / "experiments"
+    results_output_path:        Path            = Path(os.getenv("EXPERIMENT_RUNNER_OUTPUT_PATH", str(default_output)))
 
     """Experiment operation type. Unless you manually want to initiate each run, use `OperationType.AUTO`."""
     operation_type:             OperationType   = OperationType.AUTO

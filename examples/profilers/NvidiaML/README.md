@@ -30,3 +30,5 @@ python experiment-runner/ examples/nvml-profiling/RunnerConfig.py
 ## Results
 
 The results are generated in the `examples/nvml-profiling/experiments` folder, in json format.
+
+In case there are anomalies such as null, absent, or negative values, a report will be generated in the `examples/nvml-profiling/experiments` folder.

@@ -1,5 +1,6 @@
 from typing import Callable, List, Tuple
 from EventManager.Models.RunnerEvents import RunnerEvents
+from ConfigValidator.CustomErrors.BaseError import BaseError
 
 class EventSubscriptionController:
     __call_back_register: dict = dict()
@@ -20,11 +21,13 @@ class EventSubscriptionController:
             event_callback = EventSubscriptionController.__call_back_register[event]
         except KeyError:
             return None
-
-        if runner_context:
-            return event_callback(runner_context)
-        else:
-            return event_callback()
+        try:
+            if runner_context:
+                return event_callback(runner_context)
+            else:
+                return event_callback()
+        except Exception as e:
+            raise BaseError(f"Error in event handler for {event.name}: {str(e)}")
 
     @staticmethod
     def get_event_callback(event: RunnerEvents):

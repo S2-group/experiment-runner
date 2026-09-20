@@ -1,0 +1,3 @@
+java.lang.Thread.dumpThreads,0.6920
+java.lang.ref.Reference.waitForReferencePendingList,0.0053
+java.lang.invoke.MethodHandles$Lookup.checkAccess,0.0000

@@ -22,3 +22,4 @@ sudo python3 experiment-runner/ examples/joularcore-profiling/RunnerConfig.py
 
 The results are generated in the `examples/joularcore-profiling/experiments` folder.
 
+In case there are anomalies such as null, absent, or negative values, a report will be generated in the `examples/joularcore-profiling/experiments` folder

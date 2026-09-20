@@ -2,4 +2,5 @@ from enum import Enum
 
 class RunProgress(Enum):
     TODO = 1
-    DONE = 2
+    RUNNING = 2
+    DONE = 3

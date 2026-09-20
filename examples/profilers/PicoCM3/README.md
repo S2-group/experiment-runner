@@ -36,3 +36,5 @@ python experiment-runner/ examples/picocm3-profiling/RunnerConfig.py
 
 The results are generated in the `examples/picocm3-profiling/experiments` folder.
 There should be a unique log file for each variation in the experiment, as well as a run_table.csv file summarizing these log files.
+
+In case there are anomalies such as null, absent, or negative values, a report will be generated in the `examples/picocm3-profiling/experiments` folder.

@@ -16,7 +16,7 @@ class IRunController(ABC):
     run_context: RunnerContext = None
     data_manager: CSVOutputManager = None
 
-    def __init__(self, variation: Dict, config: RunnerConfig, current_run: int, total_runs: int):
+    def __init__(self, variation: Dict, config: RunnerConfig, current_run: int, total_runs: int, distributed_mode: bool = False):
         self.run_dir = config.experiment_path / variation['__run_id']
         self.run_dir.mkdir(parents=True, exist_ok=True)
 
@@ -25,6 +25,7 @@ class IRunController(ABC):
         self.current_run = current_run
         self.run_context = RunnerContext(self.variation, self.current_run, self.run_dir)
         self.data_manager = CSVOutputManager(self.config.experiment_path)
+        self.distributed_mode = distributed_mode
 
         self.run_completed_event = Event()
 

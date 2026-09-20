@@ -20,7 +20,7 @@ python3 experiment-runner/ examples/profilers/EnergiBridge/RunnerConfig.py
 ## Results
 
 The results are generated in the `examples/profilers/EnergiBridge/experiments` folder.
-
+In case there are anomalies such as null, absent, or negative values, a report will be generated in the `examples/profilers/EnergiBridge/experiments` folder.
 **!!! WARNING !!!**: COLUMNS IN THE `energibridge.csv` FILES CAN BE DIFFERENT ACROSS MACHINES.
 ADJUST THE DATAFRAME COLUMN NAMES ACCORDINGLY.
 

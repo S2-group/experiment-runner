@@ -10,6 +10,7 @@ from ProgressManager.Output.OutputProcedure import OutputProcedure as output
 from typing import Dict, List, Any, Optional
 from pathlib import Path
 from os.path import dirname, realpath
+import os
 
 '''
 Test Description:
@@ -37,7 +38,8 @@ class RunnerConfig:
 
     # ================================ USER SPECIFIC CONFIG ================================
     name:                       str             = "new_runner_experiment"
-    results_output_path:        Path             = ROOT_DIR / 'experiments'
+    default_output = ROOT_DIR / "experiments"
+    results_output_path:        Path            = Path(os.getenv("EXPERIMENT_RUNNER_OUTPUT_PATH", str(default_output)))
     operation_type:             OperationType   = OperationType.AUTO
     time_between_runs_in_ms:    int             = 100
 

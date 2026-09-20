@@ -26,3 +26,4 @@ python experiment-runner/ examples/linux-ps-profiling/RunnerConfig.py
 
 The results are generated in the `examples/linux-ps-profiling/experiments` folder.
 
+In case there are anomalies such as null, absent, or negative values, a report will be generated in the `examples/linux-ps-profiling/experiments` folder. 

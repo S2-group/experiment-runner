@@ -1,4 +1,5 @@
 import sys
+import os
 import traceback
 import dill as pickle
 import hashlib
@@ -14,6 +15,12 @@ from ConfigValidator.Config.Validation.ConfigValidator import ConfigValidator
 from ConfigValidator.CustomErrors.ConfigErrors import ConfigInvalidClassNameError
 from ExperimentOrchestrator.Experiment.ExperimentController import ExperimentController
 
+from DistributedExecution.DistributedOrchestrator import DistributedOrchestrator
+from DistributedExecution.Worker import WorkerRuntime
+
+
+
+
 def is_no_argument_given(args: List[str]): return (len(args) == 1)
 def is_config_file_given(args: List[str]): return (args[1][-3:] == '.py')
 def load_and_get_config_file_as_module(args: List[str]):
@@ -23,6 +30,13 @@ def load_and_get_config_file_as_module(args: List[str]):
     sys.modules[module_name] = config_file
     spec.loader.exec_module(config_file)
     return config_file
+
+def get_flag_value(flag: str):
+    if flag in sys.argv:
+        idx = sys.argv.index(flag)
+        if idx + 1 < len(sys.argv):
+            return sys.argv[idx + 1]
+    return None
 
 def calc_ast_md5sum(src, name):
     tree = compile(src, name, 'exec', flags=ast.PyCF_ONLY_AST, optimize=0)
@@ -41,16 +55,16 @@ def calc_ast_md5sum(src, name):
         # Ignore docstring
         if isinstance(node, (ast.AsyncFunctionDef, ast.FunctionDef, ast.ClassDef, ast.Module)) and ast.get_docstring(node) is not None:
             docstring_node = node.body[0].value
-            if isinstance(docstring_node, ast.Str):
-                docstring_node.s = ''
-            elif isinstance(docstring_node, ast.Constant) and isinstance(docstring_node.value, str):
+            if isinstance(docstring_node, ast.Constant) and isinstance(docstring_node.value, str):
                 docstring_node.value = ''
-
     return hashlib.md5(pickle.dumps(tree)).digest()
 
 
 if __name__ == "__main__":
     try: 
+        has_distribute_flag = '--distribute' in sys.argv
+        has_master_url_flag = '--master-url' in sys.argv
+
         if is_no_argument_given(sys.argv):
             sys.argv.append('help')
             CLIRegister.parse_command(sys.argv)
@@ -66,7 +80,35 @@ if __name__ == "__main__":
                 )
 
                 ConfigValidator.validate_config(config)                     # Validate config as a valid RunnerConfig
-                ExperimentController(config, metadata).do_experiment()      # Instantiate controller with config and start experiment
+                
+                if '--distribute' in sys.argv:
+                    mode = get_flag_value('--distribute')
+
+                    if mode == "master":
+                        master_host = get_flag_value('--host') or "0.0.0.0"
+                        master_port = int(get_flag_value('--port') or 5000)
+
+                        orchestrator = DistributedOrchestrator(
+                            config=config,
+                            metadata=metadata,
+                            host=master_host,
+                            port=master_port
+                        )
+                        orchestrator.start()
+
+                    elif mode == "worker":
+                        master_url = get_flag_value('--master')
+                        if not master_url:
+                            raise BaseError("--master URL required for worker")
+                        
+                        agent_id = f"worker_{os.getpid()}"
+
+                        worker = WorkerRuntime(master_url)
+                        worker.run_loop(agent_id=agent_id, config=config)
+                    else:
+                        raise BaseError("Invalid --distribute mode (use 'master' or 'worker')")                    
+                else:
+                    ExperimentController(config, metadata).do_experiment()      # Instantiate controller with config and start experiment
             else:
                 raise ConfigInvalidClassNameError
         else:                                                               # Else, a utility command is entered

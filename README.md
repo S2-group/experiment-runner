@@ -76,7 +76,69 @@ python experiment-runner/ <MyRunnerConfig.py>
 
 The results of the experiment will be stored in the directory `RunnerConfig.results_output_path/RunnerConfig.name` as defined by your config variables.
 
+### Portability Across Users and Machines
+
+When sharing experiments across different users or machines, hardcoded paths in configuration files can cause issues. Experiment Runner supports **environment variables** to make your experiments portable without code changes:
+
+#### Available Environment Variables
+
+- **`EXPERIMENT_RUNNER_OUTPUT_PATH`**: Directory where experiment results are stored
+  - Default: `<config-directory>/experiments`
+  - Example: `export EXPERIMENT_RUNNER_OUTPUT_PATH="/path/to/results"`
+
+- **`ENERGIBRIDGE_PATH`**: Path to the EnergiBridge executable (for energy measurements)
+  - Default: `/usr/local/bin/energibridge`
+  - Example: `export ENERGIBRIDGE_PATH="/usr/local/bin/energibridge"`
+
+- **`EXAMPLES_PATH`**: Directory for generating new config templates
+  - Default: `<project-root>/examples`
+  - Example: `export EXAMPLES_PATH="/home/user/my-experiments"`
+
+#### Using Environment Variables
+
+Set environment variables before running your experiment:
+
+```bash
+export EXPERIMENT_RUNNER_OUTPUT_PATH="/data/experiments"
+export ENERGIBRIDGE_PATH="/opt/energibridge/bin/energibridge"
+python experiment-runner/ MyRunnerConfig.py
+```
+
+Your configuration files automatically use these variables if set, with sensible defaults when they are not. This allows the same experiment to run on different machines without any code modifications.
+
 **More information about the profilers and use cases can be found in the [Wiki tab](https://github.com/S2-group/experiment-runner/wiki).**
+
+---
+## Remote distribution
+
+Experiment Runner supports **distributed execution across multiple machines** using a master–worker architecture.
+
+### Architecture Overview
+
+- One machine acts as the **Master (Orchestrator)**
+  - Owns the experiment `run_table`
+  - Assigns runs to workers via a REST API
+  - Tracks progress and persists experiment state
+  - Triggers lifecycle events (e.g. `AFTER_EXPERIMENT`) when finished
+
+- Multiple machines act as **Workers**
+  - Request tasks from the master
+  - Execute runs locally using the configured experiment
+  - Submit results back to the master
+
+- Communication between master and workers is handled via a lightweight **Flask-based HTTP API**
+
+### How to run it
+Start the orchestrator on the master machine:
+ ```bash
+python experiment-runner/ examples/<example-dir>/<RunnerConfig*.py> --distribute master <host host_nr --port port_nr>
+```
+On each worker machine, connect to the master:
+```bash
+experiment-runner/ examples/<example-dir>/<RunnerConfig*.py> --distribute worker --master <orchestor_adress>
+```
+When the experiment finish it, the master would close automatically, the rest of the workers would need manually closing, they would close after 120s
+
 
 ## How to cite Experiment Runner
 

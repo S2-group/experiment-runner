@@ -19,3 +19,5 @@ python experiment-runner/ examples/powerletrics-profiling/RunnerConfig.py
 ## Results
 
 The results are generated in the `examples/powerletrics-profiling/experiments` folder.
+
+In case there are anomalies such as null, absent, or negative values, a report will be generated in the `examples/powerletrics-profiling/experiments` folder.

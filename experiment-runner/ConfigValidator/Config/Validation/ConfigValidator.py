@@ -73,7 +73,7 @@ class ConfigValidator:
         # Runtime set experiment_path
         config.experiment_path = Path(str(config.results_output_path) + f"/{config.name}")
         if '~' in str(config.experiment_path):
-            config.experiment_path = config.experiment_path.expanduser()
+            config.experiment_path = config.experiment_path.expanduser().resolve()
         
         # Set defaults to support configs without the self_measure parameter and friends
         if not hasattr(config, "self_measure"):
@@ -81,8 +81,9 @@ class ConfigValidator:
 
         if config.self_measure:
             if not hasattr(config, "self_measure_bin"):
-                config.self_measure_bin = "/usr/local/bin/energibridge" # This is spesific to linux, might work for osx as well
-            
+                #config.self_measure_bin = "/usr/local/bin/energibridge" # This is spesific to linux, might work for osx as well
+                config.self_measure_bin = os.getenv("ENERGIBRIDGE_PATH", "/usr/local/bin/energibridge")
+                
             if not hasattr(config, "self_measure_logfile"):
                 config.self_measure_logfile = None
             
